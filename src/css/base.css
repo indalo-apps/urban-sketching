@@ -38,7 +38,7 @@ h1{font:600 calc(30px * var(--esc))/1.1 "Cormorant Garamond",Georgia,serif;margi
 main{display:block}
 #app{max-width:1240px;margin:0 auto;padding:6px 18px 24px}
 h2{font:600 calc(23px * var(--esc))/1.15 "Cormorant Garamond",Georgia,serif;margin:18px 0 8px}
-h3,h2.ch{font:600 calc(12px * var(--esc)) Inter;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
+h3,h2.ch,legend.ch{font:600 calc(12px * var(--esc)) Inter;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
 p{margin:0 0 10px}
 h2.ch{margin:0 0 8px;font-size:calc(12px * var(--esc));line-height:1.3}
 /* Portada */
@@ -130,6 +130,15 @@ ul.lista{margin:0;padding-left:1.1em}ul.lista li{margin:4px 0}
 .fuente{font-size:calc(12.5px * var(--esc));color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:10px}
 .navlec{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:14px}
 .navlec .boton{flex:1;min-width:140px}
+/* Salir a dibujar */
+.sitios{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.sitio{display:flex;flex-direction:column}.sitio .ops{margin-top:auto}
+.sitio h3.st{font:600 calc(17px * var(--esc))/1.25 Inter,system-ui,sans-serif;text-transform:none;letter-spacing:0;color:var(--ink);margin:0 0 6px}
+fieldset.caja{margin:0 0 12px;min-width:0}fieldset.caja legend{padding:0 4px;float:left;width:100%;margin-bottom:6px}
+.item-mat{display:flex;align-items:center;gap:6px;clear:both}
+.item-mat label{display:flex;gap:10px;align-items:center;min-height:44px;flex:1;cursor:pointer}
+.item-mat input{width:24px;height:24px;accent-color:var(--accent);flex:none}
+.item-mat .quitar{width:44px;padding:0;border-color:transparent;background:none;color:var(--muted)}
 /* Mis apuntes */
 .apuntes{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
 .apuntes li{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}

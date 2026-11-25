@@ -126,6 +126,33 @@ function nombre(L){const [l,c,h]=lch(L);
 function temperatura(L){const [,c,h]=lch(L);if(c<8)return 'neutro';return (h<105||h>=330)?'cálido':(h<150?'templado':'frío')}
 // Valor (claridad) en tres palabras
 function valor(L){return L[0]>66?'claro':L[0]>36?'medio':'oscuro'}
-const COLOR={espRgb,LAM,hexRgb,rgbHex,rgbLab,labRgb,labHex,hexLab,lch,dE,azar,kmedias,umbrales,reflect,mezclar,reflHex,buscarMezcla,textoCarga,nombre,temperatura,valor,lin,gam};
+/* Paleta limitada: las tres pinturas de la carta (o de tu caja) con las que mejor salen todos los colores
+   de la foto, cada uno con una pintura sola o con dos de las tres. Es un generador: va dando el progreso
+   (para no bloquear el móvil) y al final devuelve los mejores tríos.
+   objs: colores Lab de la foto; pesos: cuánto ocupa cada uno; pinturas: lista de {hex}. */
+function* paletaLimitada(objs,pesos,pinturas,opts){
+  opts=opts||{};const N=pinturas.length,G=objs.length,R=pinturas.map(p=>reflect(p.hex));
+  const labDe=(S)=>{const lab=rgbLab(espRgb(S));return objs.map(o=>dE(o,lab))};
+  let cand=[...Array(N).keys()];
+  // Con cartas muy largas, primero una criba rápida (sin agua ni proporciones raras) para quedarse con unas 45 pinturas
+  if(N>45){const punt=new Float64Array(N).fill(1e9),mejor=objs.map(()=>[]);
+    for(let i=0;i<N;i++){for(const t of [1,0.4,0.14]){const d=labDe(mezclar([R[i]],[1],t));d.forEach((v,g)=>{mejor[g].push([v,i,i])})}}
+    for(let i=0;i<N;i++){for(let j=i+1;j<N;j++)for(const pr of [[3,1],[1,1],[1,3]]){const d=labDe(mezclar([R[i],R[j]],pr,0.55));d.forEach((v,g)=>{mejor[g].push([v,i,j])})}
+      if(i%8===0)yield {fase:'criba',p:i/N*0.4}}
+    for(const m of mejor){m.sort((a,b)=>a[0]-b[0]);for(const [,i,j] of m.slice(0,40)){punt[i]=Math.min(punt[i],0);punt[j]=Math.min(punt[j],0)}}
+    cand=cand.filter(i=>punt[i]===0).slice(0,60)}
+  const M=cand.length,sol=cand.map(()=>new Float64Array(G).fill(1e9)),par=[];
+  for(let a=0;a<M;a++)for(const t of CARGAS){const d=labDe(mezclar([R[cand[a]]],[1],t));for(let g=0;g<G;g++)if(d[g]<sol[a][g])sol[a][g]=d[g]}
+  for(let a=0;a<M;a++){par[a]=[];for(let b=a+1;b<M;b++){const m=new Float64Array(G).fill(1e9);
+      for(const pr of PROPS.slice(1))for(const t of CARGAS){const d=labDe(mezclar([R[cand[a]],R[cand[b]]],pr,t));for(let g=0;g<G;g++)if(d[g]<m[g])m[g]=d[g]}
+      par[a][b]=m}
+    yield {fase:'mezclas',p:(N>45?0.4:0)+(N>45?0.55:0.95)*(a+1)/M}}
+  const P=(a,b)=>a<b?par[a][b]:par[b][a],tot=pesos.reduce((x,y)=>x+y,0)||1,res=[];
+  for(let a=0;a<M;a++)for(let b=a+1;b<M;b++)for(let c=b+1;c<M;c++){let s=0,peor=0;const ab=P(a,b),ac=P(a,c),bc=P(b,c);
+    for(let g=0;g<G;g++){const v=Math.min(sol[a][g],sol[b][g],sol[c][g],ab[g],ac[g],bc[g]);s+=pesos[g]*v;if(v>peor)peor=v}
+    res.push({ids:[cand[a],cand[b],cand[c]],media:s/tot,peor,nota:s/tot+0.2*peor})}
+  res.sort((x,y)=>x.nota-y.nota);
+  return res.slice(0,opts.cuantos||3)}
+const COLOR={espRgb,LAM,hexRgb,rgbHex,rgbLab,labRgb,labHex,hexLab,lch,dE,azar,kmedias,umbrales,reflect,mezclar,reflHex,buscarMezcla,paletaLimitada,textoCarga,nombre,temperatura,valor,lin,gam};
 raiz.COLOR=COLOR;if(typeof module!=='undefined')module.exports=COLOR;
 })(typeof window!=='undefined'?window:globalThis);

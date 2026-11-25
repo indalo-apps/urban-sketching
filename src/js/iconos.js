@@ -44,12 +44,16 @@ const P={
   ajustar:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   tiempo:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',
   mano:'<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-6 7-3 0-4.5-1.5-6-4l-2-3.5a1.5 1.5 0 0 1 2.5-1.5L8 13"/>',
+  sol:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+  mochila:'<path d="M7 8a5 5 0 0 1 10 0v12H7z"/><path d="M10 4.5V3.5h4v1M7 13h10M10 13v2.5h4V13"/>',
+  calendario:'<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+  brujula:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
   foto:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/>'
 };
 const M={'✏':'lapiz','🖼':'imagen','🎨':'paleta','📐':'compas','▦':'cuadricula','📄':'documento','⬇':'descargar','📲':'instalar',
   '📱':'movil','📖':'libro','↶':'deshacer','✂':'tijeras','🔄':'actualizar','📋':'copiar','🖨':'imprimir','🔀':'mezclar',
   '✓':'hecho','📏':'regla','✉':'correo','🔒':'candado','✕':'cerrar','↺':'reiniciar','📷':'camara','👁':'ojo','📒':'cuaderno',
-  '📤':'compartir','🗑':'papelera','🧍':'persona','🌅':'horizonte','➕':'mas','➖':'menos','⛶':'ajustar','⏱':'tiempo','✋':'mano'};
+  '📤':'compartir','🗑':'papelera','🧍':'persona','🌅':'horizonte','➕':'mas','➖':'menos','⛶':'ajustar','⏱':'tiempo','✋':'mano','☀':'sol','🎒':'mochila','📅':'calendario','🧭':'brujula','📍':'lugar'};
 const RE=new RegExp('^(\\s*)('+Object.keys(M).join('|')+')\\uFE0F?\\s*','u');
 window.icono=(n,cl='ic')=>`<svg class="${cl}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[n]}</svg>`;
 const SEL='button,h2,summary,a.boton,label.boton';

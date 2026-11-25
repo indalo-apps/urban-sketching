@@ -226,7 +226,39 @@ const LECCIONES=[
    const piezas=[[`<rect width="600" height="380"`,1],[`<rect y="300" width="600" height="80"`,2],[`<polygon points="120,300 120,90 330,60 330,300"`,0],[`<polygon points="330,300 330,60 480,110 480,300"`,2],
      [`<polygon points="120,90 330,60 480,110 260,135"`,1],[`<rect x="200" y="210" width="50" height="90"`,3],[`<rect x="150" y="130" width="34" height="46"`,3],[`<rect x="250" y="120" width="34" height="46"`,3],[`<polygon points="370,140 400,150 400,195 370,186"`,3],[`<polygon points="120,300 330,300 280,330 60,330"`,2]];
    let s='';for(const [p,t] of piezas)s+=`${p} fill="${g(t)}" stroke="#1d1a16" stroke-width="1.2"/>`;
-   return s+etiqueta(12,24,['Paso 1: reserva los blancos','Paso 2: aguada clara en todo lo demás','Paso 3: aguada media, ya seca la anterior','Paso 4: los oscuros, al final'][k],18)}}
+   return s+etiqueta(12,24,['Paso 1: reserva los blancos','Paso 2: aguada clara en todo lo demás','Paso 3: aguada media, ya seca la anterior','Paso 4: los oscuros, al final'][k],18)}},
+ {id:'tramas',t:'Tramas y sombreados',c:[['tipo','Tipo de trama',0,2,1,0,v=>['líneas paralelas','trama cruzada','puntos'][v]],['sep','Separación de los trazos',4,14,1,8,v=>v<7?'muy juntos (más oscuro)':v<11?'normal':'separados (más claro)']],
+  p:['Con tinta no hay grises: los tonos se hacen con trazos. Sarah Haley repasa las maneras: líneas paralelas, trama cruzada, líneas que siguen la forma, puntos y garabatos.',
+   'La regla es la misma que en la acuarela: lo más claro es el papel sin tocar. Para oscurecer, junta las líneas, hazlas más gruesas o cruza otra capa en otra dirección. Phil Metzger distingue dos sombras: la propia, en la cara que no mira a la luz, y la arrojada, en el suelo, que suele ser más oscura. Aquí la propia lleva una capa y la arrojada, dos.',
+   'Mantén la misma dirección en toda una zona para que se lea como un solo tono, y no lo rellenes todo: deja respirar el papel. En la etapa Valores, la vista «Trama» pasa tus fotos a tonos de trama.'],
+  f:'Sarah Haley, «Shading»; Phil Metzger, cap. 4; The Urban Sketching Handbook: Understanding Perspective (los apuntes a tinta de Paul Heaston y James Akers).',
+  d:v=>{const e=v.sep,sol=[-0.7,0.55,-0.45],cam=ESCENA.camara({ojo:1.6,f:420,w:600,h:380,yaw:-4});
+   const pat=(id,capas)=>{let s=`<pattern id="${id}" width="${e}" height="${e}" patternUnits="userSpaceOnUse"${v.tipo===2?'':' patternTransform="rotate(45)"'}><rect width="${e}" height="${e}" fill="#fffdf8"/>`;
+     if(v.tipo===2){s+=`<circle cx="${e*0.3}" cy="${e*0.3}" r="1.3" fill="${LAMINA.tinta}"/>`;if(capas>1)s+=`<circle cx="${e*0.8}" cy="${e*0.75}" r="1.3" fill="${LAMINA.tinta}"/><circle cx="${e*0.75}" cy="${e*0.2}" r="1.1" fill="${LAMINA.tinta}"/>`}
+     else{s+=`<line x1="0" y1="0" x2="0" y2="${e}" stroke="${LAMINA.tinta}" stroke-width="${capas>1&&v.tipo===0?2.2:1.3}"/>`;if(capas>1&&v.tipo===1)s+=`<line x1="0" y1="${e/2}" x2="${e}" y2="${e/2}" stroke="${LAMINA.tinta}" stroke-width="1.3"/>`;if(capas>1&&v.tipo===0)s+=`<line x1="${e/2}" y1="0" x2="${e/2}" y2="${e}" stroke="${LAMINA.tinta}" stroke-width="1.6"/>`}
+     return s+'</pattern>'};
+   const k=ESCENA.caja({x:-3,z:22,w:8,d:7,h:9,giro:32,ventanas:true});
+   k.caras.forEach(f=>{f.color=f.n[0]*sol[0]+f.n[1]*sol[1]+f.n[2]*sol[2]>0?'#fffdf8':'url(#le-t1)'});
+   const pts=[];for(const q of k.esquinas.b)pts.push([q[0],q[2]]);for(const q of k.esquinas.t)pts.push([q[0]-q[1]*sol[0]/sol[1],q[2]-q[1]*sol[2]/sol[1]]);
+   const c=recortar(envolvente(pts),0.8),pp=c.map(q=>cam.ver([q[0],0,q[1]]));
+   let s=`<defs>${pat('le-t1',1)}${pat('le-t2',2)}</defs><rect width="600" height="380" fill="#fffdf8"/>`;
+   s+=`<polygon points="${ESCENA.pts(pp)}" fill="url(#le-t2)" stroke="${LAMINA.tinta}" stroke-width="1"/>`;
+   s+=svgEscena(cam,[k],{guias:false,letras:false,horizonte:false}).replace(/^<rect[^>]*\/><rect[^>]*\/>/,'');
+   return s+etiqueta(12,306,'papel: luz',20)+etiqueta(12,336,'una capa: sombra propia',20)+etiqueta(12,366,'dos capas: sombra arrojada',20)}},
+ {id:'grosor',t:'Grosor de línea',c:[['modo','Cómo es la línea',0,2,1,0,v=>['toda igual','más gruesa cerca','gruesa fuera, fina dentro'][v]]],
+  p:['Con un solo rotulador y sin color también se puede dar profundidad: basta cambiar el grosor de la línea. Bruno Mollière lo llama un degradado de nitidez: trazos gruesos y bien marcados delante y más finos al fondo, con minas o rotuladores de distintos grosores.',
+   'Robert Pastrana añade otra regla: líneas más gruesas para el contorno exterior de cada volumen y más finas para lo de dentro (aristas interiores, ventanas, detalles). Así el dibujo no se lee ambiguo.',
+   'Con tres grosores suele bastar, por ejemplo un rotulador de 0,8 mm, uno de 0,3 mm y uno de 0,1 mm. Jorge Paricio habla de tener un «vocabulario» de grosores. Mueve el control y compara.'],
+  f:'Bruno Mollière, «degradado de nitidez»; Robert Pastrana, «Line weight»; Jorge Paricio, «line weight vocabulary».',
+  d:v=>{const cam=ESCENA.camara({ojo:1.6,f:420,w:600,h:380});
+   const cajas=[ESCENA.caja({x:24,z:90,w:12,d:12,h:26,giro:35,ventanas:true}),ESCENA.caja({x:5,z:33,w:8,d:8,h:10,giro:35,ventanas:true}),ESCENA.caja({x:-5,z:17,w:6,d:6,h:5,giro:35,ventanas:true})];
+   let s=`<rect width="600" height="380" fill="#fffdf8"/><line x1="0" y1="${cam.horizonteY}" x2="600" y2="${cam.horizonteY}" stroke="${LAMINA.tinta}" stroke-width=".8" stroke-dasharray="6 6"/>`;
+   for(const k of cajas){const z=cam.prof([k.esquinas.b[0][0],0,k.esquinas.b[0][2]]),g=v.modo===0?1.6:Math.max(0.6,Math.min(4.6,60/z)),det=v.modo===2?g*0.4:g;
+     for(const {pp,hs} of ESCENA.proyectar(cam,[k])){s+=`<polygon points="${ESCENA.pts(pp)}" fill="#fffdf8" stroke="${LAMINA.tinta}" stroke-width="${det.toFixed(2)}" stroke-linejoin="round"/>`;
+       for(const w of hs)s+=`<polygon points="${ESCENA.pts(w)}" fill="none" stroke="${LAMINA.tinta}" stroke-width="${(v.modo===0?1.2:det*0.8).toFixed(2)}"/>`}
+     if(v.modo===2){const pts=[...k.esquinas.b,...k.esquinas.t].map(cam.ver).filter(Boolean),h=envolvente(pts);s+=`<polygon points="${ESCENA.pts(h)}" fill="none" stroke="${LAMINA.tinta}" stroke-width="${(g*1.5).toFixed(2)}" stroke-linejoin="round"/>`}}
+   for(const [x,z] of [[1.5,10],[-1,22],[2,45]])s+=ESCENA.persona(cam,x,z,1.7,'').replace('<g class="">',`<g fill="${LAMINA.tinta}">`);
+   return s+etiqueta(12,366,['todas las líneas iguales: plano','delante, más grueso; al fondo, fino','contorno grueso, detalles finos'][v.modo],20)}}
 ];
 // ---- Vistas ----
 const VIEJAS=['horizonte','paralelas','lejos','arriba','unpunto','dospuntos','nojuntes','personas','trespuntos','cuesta','atmosfera','tonos'];

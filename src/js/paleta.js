@@ -32,7 +32,7 @@ ETAPAS.color={pintar(cont){
     svg.setAttribute('aria-label',c.sel<0?'Foto encuadrada':`Foto con el color ${c.sel+1} resaltado y el resto en blanco`)}
   barra.append(html(`<button id="co-todo" aria-pressed="${c.sel<0}">🖼 Ver toda la foto</button>`));
   $('#co-todo').onclick=()=>{c.sel=c.sel<0?0:-1;guardar();render();pintarPanel()};
-  let trabajo=0;
+  let trabajo=0,trioT=0;
   function mezclas(cb){const key='mz'+rectEncuadre()+c.k+':'+marcaKey();if(US.cache[key]&&US.cache[key].length===G.length){cb(US.cache[key],true);return}
     const P=pinturas(),res=[],yo=++trabajo;
     const paso=i=>{if(yo!==trabajo)return;if(i>=G.length){US.cache[key]=res;cb(res,true);return}
@@ -51,13 +51,35 @@ ETAPAS.color={pintar(cont){
       lista.querySelectorAll('[data-sel]').forEach(x=>{const on=+x.dataset.sel===c.sel;x.classList.toggle('sel',on);x.setAttribute('aria-pressed',on)});$('#co-todo').setAttribute('aria-pressed','false');anunciar('Color '+(c.sel+1)+' resaltado en la foto')});
     const c3=html(`<div class="caja"><h2 class="ch">Tabla de mezclas</h2><div id="co-tabla"><p class="muted">Se prepara cuando estén las mezclas…</p></div><div class="ops" style="margin-top:10px"><button id="co-hoja">🖨 Hoja de pruebas para pintar (PDF)</button></div><p class="muted" id="co-hoja-msg" role="status" aria-live="polite"></p></div>`);
     c3.querySelector('#co-hoja').onclick=()=>HOJA.descargar(t=>{const m=$('#co-hoja-msg');if(m)m.textContent=t});
-    panel.append(c1,lista,c3);
+    const c4=html(`<div class="caja"><h2 class="ch">Paleta limitada: 3 pinturas</h2><p class="muted">Las tres pinturas ${caja.length>=2?'de tu caja':'de la carta'} con las que mejor salen todos estos colores, cada uno con una sola o mezclando dos de ellas. Pesa poco y da armonía al apunte.</p>
+      <div id="co-trio"></div><div class="ops"><button class="prim" id="co-trio-b">🎨 Buscar mis 3 pinturas</button></div><p class="muted" id="co-trio-msg" role="status" aria-live="polite" style="margin-top:6px"></p></div>`);
+    c4.querySelector('#co-trio-b').onclick=()=>buscarTrio();
+    panel.append(c1,lista,c4,c3);
+    const tk=trioKey();if(US.cache[tk])pintarTrio(US.cache[tk]);
     if(carta.rotulador)panel.append(html(`<p class="nota"><b>Con rotuladores:</b> las mezclas se hacen superponiendo capas o juntándolas con el pincel de agua; la proporción dice cuánto de cada uno. Según Faber-Castell, el orden importa: amarillo sobre azul no da lo mismo que azul sobre amarillo. Para oscurecer, mejor el complementario que el negro.</p>`));
     panel.append(html(`<p class="nota">Los colores en pantalla y las mezclas son aproximados: dependen de la pantalla, del papel y de cada pintura (algunas granulan o se aclaran al secar). Prueba siempre en un trozo de papel aparte.</p>`));
     panel.append(botonSiguiente('color'));
     mezclas((res,fin)=>{res.forEach((ops,i)=>{const z=lista.querySelector(`[data-mz="${i}"]`);if(!z||z.dataset.ok)return;z.dataset.ok=1;
         z.innerHTML=ops.map((o,j)=>`<span class="mezcla"><span class="m" style="background:${o.hex}" aria-hidden="true"></span><span>${j?'O bien: ':''}${esc(o.texto)} <span class="muted">(${parecido(o.de)})</span></span></span>`).join('')});
       if(fin)tabla(res)})}
+  const trioKey=()=>'trio'+rectEncuadre()+c.k+':'+marcaKey();
+  const trioPinturas=()=>{const P=pinturas(),f=P.filter(x=>!x.extra);return f.length>=3?f:P};
+  function buscarTrio(){const P=trioPinturas(),msg=$('#co-trio-msg'),b=$('#co-trio-b');
+    if(P.length<3){msg.textContent='Hacen falta al menos 3 pinturas: marca más en «Mi caja».';return}
+    const yo=++trioT,gen=COLOR.paletaLimitada(G.map(g=>g.lab),G.map(g=>g.peso),P);b.disabled=true;msg.textContent='Buscando entre '+P.length+' pinturas…';
+    const paso=()=>{if(yo!==trioT)return;const t0=performance.now();let r;
+      do{r=gen.next()}while(!r.done&&performance.now()-t0<35);
+      if(!r.done){const m=$('#co-trio-msg');if(m)m.textContent='Buscando entre '+P.length+' pinturas… '+Math.round(r.value.p*100)+' %';setTimeout(paso,0);return}
+      const res=r.value.map(o=>({ps:o.ids.map(i=>P[i]),media:o.media,peor:o.peor}));
+      res.forEach(o=>{o.mz=G.map(g=>COLOR.buscarMezcla(g.lab,o.ps,1)[0])});
+      US.cache[trioKey()]=res;const bb=$('#co-trio-b');if(bb)bb.disabled=false;pintarTrio(res);anunciar('Paleta limitada: '+res[0].ps.map(nombreP).join(', '))};
+    setTimeout(paso,30)}
+  function pintarTrio(res){const z=$('#co-trio');if(!z)return;const o=res[0],m=$('#co-trio-msg'),b=$('#co-trio-b');if(m)m.textContent='';if(b){b.textContent='Buscar otra vez';b.classList.remove('prim')}
+    z.innerHTML=`<div class="colores" style="margin:6px 0 8px">${o.ps.map(p=>`<div class="mezcla"><span class="m" style="background:${p.hex};width:40px;height:40px" aria-hidden="true"></span><span><b>${esc(nombreP(p))}</b></span></div>`).join('')}</div>
+      <p>Con estas tres: <b>${parecido(o.media)}</b> de media${o.peor>8?`; el que peor sale, ${parecido(o.peor)}`:''}.</p>
+      <ol class="capas">${o.mz.map((x,i)=>`<li><span class="mezcla" style="margin:0"><span class="m" style="background:${x.hex}" aria-hidden="true"></span><span>Color ${i+1}: ${esc(textoMezcla(x,o.ps))} <span class="muted">(${parecido(x.de)})</span></span></span></li>`).join('')}</ol>
+      ${res.length>1?`<p class="muted" style="margin-top:8px">Otras opciones: ${res.slice(1).map(r=>r.ps.map(p=>esc(p.nombre)).join(' + ')+' ('+parecido(r.media)+')').join('; ')}.</p>`:''}
+      <p class="muted" style="margin-top:6px">Felix Scheinberger recuerda que con tres colores se puede mezclar casi todo. No tienen por qué ser rojo, amarillo y azul: son las tres que mejor sacan los colores de esta foto.</p>`}
   function tabla(res){const t=$('#co-tabla');if(!t)return;const usados=[];
     for(const ops of res)for(const g of ops[0].pigs)if(!usados.find(u=>u.hex===g.hex&&u.nombre===g.nombre))usados.push(g);
     const U=usados.slice(0,6);if(!U.length){t.innerHTML='';return}
@@ -68,7 +90,7 @@ ETAPAS.color={pintar(cont){
     U.forEach((u,a)=>{s+=`<tr><th scope="row">${a+1}. ${esc(u.nombre)}</th>`+[1,0.55,0.3,0.15].map(t=>`<td style="background:${COLOR.reflHex(COLOR.mezclar([R[a]],[1],t))}"><span class="sr">${COLOR.textoCarga(t)}</span></td>`).join('')+'</tr>'});
     t.innerHTML=s+'</tbody></table></div>'}
   pintarPanel();render();
-  limpiar=()=>{trabajo++};
+  limpiar=()=>{trabajo++;trioT++};
 }};
 // Ajustes de pintura desde Color: abre Ajustes en el apartado «Para dibujar»
 function abrirAjustesPintura(){abrirDlg('dlg-ajustes');setTimeout(()=>{const b=$('#aj-caja');if(b)b.scrollIntoView({block:'center'})},50)}

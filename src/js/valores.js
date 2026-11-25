@@ -24,7 +24,31 @@ function tonos(L,u){const n=u.length+1,t=new Uint8Array(L.length),cuenta=new Arr
   return {t,cuenta:cuenta.map(c=>c/L.length)}}
 function imagen(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d'),id=x.createImageData(w,h),d=id.data;
   for(let i=0,j=0;i<w*h;i++,j+=4){const g=fn(i);d[j]=d[j+1]=d[j+2]=g;d[j+3]=255}x.putImageData(id,0,0);return c.toDataURL('image/png')}
-window.VALORES={claridades,cortes,tonos,TONOS,NOMBRES,Lg};
+/* Mapa de bordes: el cambio de claridad (Sobel) sobre la foto ya desenfocada, adelgazado a una línea
+   y con umbral según el detalle pedido. Sirve para decidir qué contornos merecen trazo de tinta. */
+function bordes(D,detalle){const {L,w,h}=D,N=w*h,mag=new Float32Array(N),dir=new Uint8Array(N);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;
+    const gx=(L[i-w+1]+2*L[i+1]+L[i+w+1])-(L[i-w-1]+2*L[i-1]+L[i+w-1]),gy=(L[i+w-1]+2*L[i+w]+L[i+w+1])-(L[i-w-1]+2*L[i-w]+L[i-w+1]);
+    mag[i]=Math.hypot(gx,gy);const a=(Math.atan2(gy,gx)*180/Math.PI+180)%180;dir[i]=a<22.5||a>=157.5?0:a<67.5?1:a<112.5?2:3}
+  const OFF=[[1,0],[1,1],[0,1],[-1,1]],fino=new Float32Array(N),vals=[];
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x,m=mag[i];if(m<1)continue;const [dx,dy]=OFF[dir[i]],o=dy*w+dx;
+    if(m>=mag[i+o]&&m>=mag[i-o]){fino[i]=m;vals.push(m)}}
+  vals.sort((a,b)=>b-a);const keep=Math.min(vals.length-1,Math.round(N*(0.004+0.0035*detalle)));const T=vals.length?vals[Math.max(0,keep)]:1e9;
+  const e=new Uint8Array(N),pila=[];for(let i=0;i<N;i++)if(fino[i]>=T){e[i]=1;pila.push(i)}
+  while(pila.length){const i=pila.pop();for(const o of [1,-1,w,-w,w+1,w-1,-w+1,-w-1]){const j=i+o;if(j>0&&j<N&&!e[j]&&fino[j]>=T*0.45){e[j]=1;pila.push(j)}}}// se siguen las líneas débiles pegadas a una fuerte
+  return e}
+const hash=(a,b)=>{let h=Math.imul(a,374761393)+Math.imul(b,668265263)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967296};
+/* Trama: cada tono, una trama de tinta. El blanco del papel, sin nada; cuanto más oscuro, más líneas
+   (paralelas más juntas y gruesas, cruzadas en más direcciones, o más puntos). Sarah Haley, «Shading». */
+function trama(t,w,h,n,tipo){const S=Math.max(8,Math.round(Math.max(w,h)/58)),TI=25;
+  const linea=(u,esp,g)=>((u%esp)+esp)%esp<g;
+  return i=>{const k=t[i];if(!k)return 255;const d=k/(n-1),x=i%w,y=(i/w)|0;
+    if(tipo==='puntos'){const c=Math.max(4,Math.round(S*0.62)),cx=Math.floor(x/c),cy=Math.floor(y/c);if(hash(cx,cy)>0.08+0.87*Math.pow(d,1.2))return 255;
+      const ox=(hash(cx,cy+7919)*0.5+0.25)*c,oy=(hash(cx+104729,cy)*0.5+0.25)*c,dx=x-cx*c-ox,dy=y-cy*c-oy,r=Math.max(1.6,c*0.27);return dx*dx+dy*dy<=r*r?TI:255}
+    if(tipo==='cruzada'){const dirs=Math.max(1,Math.round(d*Math.min(4,n-1))),g=Math.max(1.3,S*0.13),e=S*0.95;
+      if(linea(x+y,e,g)||(dirs>1&&linea(x-y,e,g))||(dirs>2&&linea(y,e*0.75,g*0.8))||(dirs>3&&linea(x,e*0.75,g*0.8)))return TI;return 255}
+    const e=S*(1.55-0.85*d),g=Math.max(1.3,S*(0.1+0.3*d));return linea(x+y,e,g)?TI:255}}
+window.VALORES={claridades,cortes,tonos,bordes,trama,TONOS,NOMBRES,Lg};
 ETAPAS.valores={pintar(cont){
   const p=US.p,v=p.val;
   const {svg,barra,panel}=crearZona(cont);
@@ -38,9 +62,13 @@ ETAPAS.valores={pintar(cont){
       if(k===0)url=imagen(w,h,i=>t[i]===0?255:205);
       else url=imagen(w,h,i=>{const a=Math.min(t[i],k),g=ton[a];// borde de la capa nueva, para verla sin depender del tono
         if(t[i]>=k){const x=i%w,y=(i/w)|0;if((x>0&&t[i-1]<k)||(x<w-1&&t[i+1]<k)||(y>0&&t[i-w]<k)||(y<h-1&&t[i+w]<k))return 0}return g})}
+    else if(v.vista==='bordes'){const k='bo'+rectEncuadre()+v.borroso+':'+(v.detalle||5);url=US.cache[k];
+      if(!url){const e=bordes(D,v.detalle||5);url=US.cache[k]=imagen(w,h,i=>e[i]||(i%w&&e[i-1])||(i>=w&&e[i-w])?30:255)}}
+    else if(v.vista==='trama'){const k='tr'+rectEncuadre()+v.borroso+':'+v.n+':'+u.join(',')+':'+(v.trama||'paralela');url=US.cache[k];
+      if(!url)url=US.cache[k]=imagen(w,h,trama(T.t,w,h,v.n,v.trama||'paralela'))}
     else url=imagen(w,h,i=>ton[T.t[i]]);
     svg.innerHTML='';el('image',{href:url,x:0,y:0,width:w,height:h,preserveAspectRatio:'none'},svg);
-    svg.setAttribute('aria-label',ver?'Foto original':v.vista==='aguadas'?`Plan de aguadas, paso ${v.paso+1} de ${v.n}`:v.vista==='grises'?'Foto en grises':`Foto en ${v.n} tonos planos`)}
+    svg.setAttribute('aria-label',ver?'Foto original':v.vista==='aguadas'?`Plan de aguadas, paso ${v.paso+1} de ${v.n}`:v.vista==='grises'?'Foto en grises':v.vista==='bordes'?'Mapa de bordes: los contornos principales de la foto, como un dibujo a tinta':v.vista==='trama'?`La foto en ${v.n} tonos hechos con trama ${{paralela:'de líneas paralelas',cruzada:'cruzada',puntos:'de puntos'}[v.trama||'paralela']}`:`Foto en ${v.n} tonos planos`)}
   barra.append(html(`<button id="va-ver" aria-pressed="false">👁 Ver la foto</button>`));
   const bv=$('#va-ver');let sostener=false;
   bv.addEventListener('pointerdown',()=>{sostener=true;ver=true;render()});
@@ -57,9 +85,16 @@ ETAPAS.valores={pintar(cont){
     c1.addEventListener('click',e=>{const b=e.target.closest('[data-n]');if(!b)return;v.n=+b.dataset.n;v.umb=null;v.paso=0;guardar();C=calcular();pintarPanel();render();anunciar(v.n+' tonos')});
     c1.querySelector('#va-bor').onchange=e=>{v.borroso=+e.target.value;guardar();C=calcular();pintarPanel();render()};
     const c2=html(`<div class="caja"><h2 class="ch">Ver</h2><div class="ops" role="group" aria-label="Vista">
-      <button data-vista="tonos" aria-pressed="${v.vista==='tonos'}">Tonos planos</button><button data-vista="aguadas" aria-pressed="${v.vista==='aguadas'}">Plan de aguadas</button><button data-vista="grises" aria-pressed="${v.vista==='grises'}">En grises</button></div>
-      <div id="va-plan" ${v.vista==='aguadas'?'':'hidden'}></div></div>`);
+      <button data-vista="tonos" aria-pressed="${v.vista==='tonos'}">Tonos planos</button><button data-vista="aguadas" aria-pressed="${v.vista==='aguadas'}">Plan de aguadas</button><button data-vista="grises" aria-pressed="${v.vista==='grises'}">En grises</button><button data-vista="bordes" aria-pressed="${v.vista==='bordes'}">Bordes (tinta)</button><button data-vista="trama" aria-pressed="${v.vista==='trama'}">Trama</button></div>
+      <div id="va-plan" ${v.vista==='aguadas'?'':'hidden'}></div><div id="va-extra"></div></div>`);
     c2.addEventListener('click',e=>{const b=e.target.closest('[data-vista]');if(!b)return;v.vista=b.dataset.vista;guardar();pintarPanel();render()});
+    const ex=c2.querySelector('#va-extra');
+    if(v.vista==='bordes'){ex.append(html(`<div><div class="fila" style="margin-top:6px"><label for="va-det">Cuántas líneas</label><input type="range" id="va-det" min="1" max="10" step="1" value="${v.detalle||5}" aria-valuetext="${['muy pocas','muy pocas','pocas','pocas','normal','normal','bastantes','bastantes','muchas','muchas'][(v.detalle||5)-1]}"></div>
+      <p class="muted">Son los contornos donde la claridad cambia de golpe: los que merecen una línea de tinta. Lo demás se resuelve con mancha. Sube «Entrecerrar los ojos» para quedarte solo con los grandes.</p></div>`));
+      ex.querySelector('#va-det').onchange=e=>{v.detalle=+e.target.value;guardar();pintarPanel();render()}}
+    if(v.vista==='trama'){ex.append(html(`<div><div class="ops" role="group" aria-label="Tipo de trama" style="margin-top:8px"><button data-trama="paralela" aria-pressed="${(v.trama||'paralela')==='paralela'}">Paralela</button><button data-trama="cruzada" aria-pressed="${v.trama==='cruzada'}">Cruzada</button><button data-trama="puntos" aria-pressed="${v.trama==='puntos'}">Puntos</button></div>
+      <p class="muted" style="margin-top:6px">Cada tono, una trama: el más claro, papel sin nada; el más oscuro, la trama más densa. Para un apunte solo a tinta. Cambia el número de tonos arriba.</p></div>`));
+      ex.addEventListener('click',e=>{const b=e.target.closest('[data-trama]');if(!b)return;v.trama=b.dataset.trama;guardar();pintarPanel();render();anunciar('Trama '+b.textContent.toLowerCase())})}
     if(v.vista==='aguadas'){const pl=c2.querySelector('#va-plan'),n=v.n,acum=k=>T.cuenta.slice(k).reduce((a,b)=>a+b,0);
       const pasos=[`Reserva los blancos del papel (${pct(T.cuenta[0])}): ahí no pintes.`];
       for(let k=1;k<n;k++)pasos.push(k===1?`Primera aguada, la más clara: todo menos los blancos (${pct(acum(1))}). Deja secar.`:k===n-1?`Los oscuros, al final: solo donde más oscuro (${pct(acum(k))}).`:`Aguada ${k===2?'media':'más oscura'}, encima de la anterior y ya seca (${pct(acum(k))}).`);

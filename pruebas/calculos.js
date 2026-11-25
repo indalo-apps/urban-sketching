@@ -91,4 +91,27 @@ for(const [a,b,v] of [[[50,2.6772,-79.7751],[50,0,-82.7485],2.0425],[[50,2.5,0],
   prueba('umbrales entre tres valores',u.length===2&&u[0]>20&&u[0]<55&&u[1]>55&&u[1]<85,JSON.stringify(u));}
 prueba('nombre de colores',C.nombre(C.hexLab('#2b4698')).startsWith('azul')&&C.nombre(C.hexLab('#ffffff'))==='blanco'&&C.nombre(C.hexLab('#b63915')).startsWith('rojo')&&C.nombre(C.hexLab('#f9b622')).includes('amarillo'),[C.nombre(C.hexLab('#2b4698')),C.nombre(C.hexLab('#b63915')),C.nombre(C.hexLab('#f9b622'))].join(' / '));
 prueba('temperatura',C.temperatura(C.hexLab('#e7450b'))==='cálido'&&C.temperatura(C.hexLab('#2b4698'))==='frío'&&C.temperatura(C.hexLab('#808080'))==='neutro');
+// ---- Paleta limitada ----
+{const pins=[{hex:'#f6e66c'},{hex:'#2b4698'},{hex:'#b63915'},{hex:'#342c86'},{hex:'#e4130f'}];
+  const objs=[C.rgbLab(C.espRgb(C.mezclar([C.reflect('#f6e66c'),C.reflect('#2b4698')],[3,1],0.55))),C.hexLab('#b63915'),C.rgbLab(C.espRgb(C.mezclar([C.reflect('#2b4698')],[1],0.28)))];
+  const g=C.paletaLimitada(objs,[0.5,0.3,0.2],pins);let r,pasos=0;while(!(r=g.next()).done)pasos++;
+  const ids=r.value[0].ids.slice().sort();
+  prueba('paleta limitada: encuentra las tres pinturas que hacen los colores (amarillo, azul ftalo y siena)',JSON.stringify(ids)==='[0,1,2]'&&r.value[0].media<1.5,JSON.stringify(r.value[0]));
+  prueba('paleta limitada: avisa del progreso y da varias opciones ordenadas',pasos>0&&r.value.length===3&&r.value[0].nota<=r.value[1].nota);}
+// ---- Sol ----
+{const S=require(path.join(__dirname,'../src/js/sol.js')),lat=36.84,lon=-2.46;
+  const dia=(d,h)=>new Date(Date.UTC(...d,0,0)-h*3600000);// medianoche local con h horas de diferencia con UTC
+  const ver=S.dia(dia([2026,5,21],2),lat,lon),equi=S.dia(dia([2026,2,20],1),lat,lon),inv=S.dia(dia([2026,11,21],1),lat,lon);
+  prueba('sol en Almería: altura a mediodía en el solsticio de verano ≈ 90 − 36,84 + 23,44',cerca(ver.altMax,76.6,0.3),ver.altMax);
+  prueba('sol: equinoccio ≈ 90 − latitud',cerca(equi.altMax,53.2,0.6),equi.altMax);
+  prueba('sol: solsticio de invierno ≈ 29,7°',cerca(inv.altMax,29.7,0.3),inv.altMax);
+  const hm=d=>d.getUTCHours()*60+d.getUTCMinutes();
+  prueba('sol: en verano sale hacia las 6:51 y se pone hacia las 21:32 (hora de España)',Math.abs(hm(ver.salida)-(4*60+51))<6&&Math.abs(hm(ver.puesta)-(19*60+32))<6,ver.salida.toISOString()+' '+ver.puesta.toISOString());
+  prueba('sol: mediodía solar hacia las 14:11 en verano',Math.abs(hm(ver.mediodia)-(12*60+11))<4,ver.mediodia.toISOString());
+  const p=S.posicion(ver.mediodia,lat,lon);prueba('sol: a mediodía está al sur',cerca(p.az,180,1.5),p.az);
+  const m=S.posicion(new Date(Date.UTC(2026,2,20,8,0)),lat,lon),t=S.posicion(new Date(Date.UTC(2026,2,20,16,0)),lat,lon);
+  prueba('sol: por la mañana al este y por la tarde al oeste',m.az>90&&m.az<150&&t.az>210&&t.az<270,m.az+' '+t.az);
+  prueba('sol: sombra de 1 m con el sol a 45° mide 1 m',cerca(S.sombra(1,45),1,1e-9));
+  prueba('sol: rumbos',S.rumbo(0)==='norte'&&S.rumbo(225)==='suroeste'&&S.rumbo(90,true)==='este'&&S.rumbo(350,true)==='norte');
+  prueba('sol: horas doradas antes de la puesta',ver.doradaT&&ver.doradaT[1]-ver.puesta===0&&ver.doradaT[0]<ver.puesta);}
 console.log(`${mal?'✗':'✓'} cálculos: ${ok} comprobaciones bien${mal?', '+mal+' mal':''}`);process.exit(mal?1:0);

@@ -63,7 +63,7 @@ async function apunteEjemplo(){
   const pers={modo:2,lineas:{A:izq?fx:fz,B:izq?fz:fx,V:[]},personas:[],medidas:[],herramienta:'rectas',regla:true,cono:true,rejilla:false,densidad:8,h0:null,v0:null};
   const id=await crearApunte(c,{nombre:'Ejemplo: una esquina inventada',pers});location.hash='#foto/'+id+'/encuadre'}
 /* ---------- Navegación ---------- */
-const PADRE={mis:['#inicio','Inicio'],natural:['#inicio','Inicio'],aprender:['#inicio','Inicio'],leccion:['#aprender','Aprender'],foto:['#mis','Mis apuntes']};
+const PADRE={mis:['#inicio','Inicio'],natural:['#inicio','Inicio'],sol:['#inicio','Inicio'],rutas:['#inicio','Inicio'],material:['#inicio','Inicio'],aprender:['#inicio','Inicio'],leccion:['#aprender','Aprender'],foto:['#mis','Mis apuntes']};
 function cabecera(ruta,titulo,sub){
   const v=$('#volver'),pa=PADRE[ruta];v.hidden=!pa;$('#casa').hidden=ruta==='inicio';
   if(pa){v.textContent='‹ '+pa[1];v.setAttribute('aria-label','Volver a '+pa[1]);v.onclick=()=>{location.hash=pa[0]}}
@@ -80,6 +80,9 @@ async function pintar(){
     store.set('us-ultimo',{id:US.id,etapa:et});return vistaFoto(main,et)}
   if(ruta==='mis')return vistaMis(main);
   if(ruta==='natural')return VISTA_NATURAL(main);
+  if(ruta==='sol')return VISTA_SOL(main);
+  if(ruta==='rutas')return VISTA_RUTAS(main);
+  if(ruta==='material')return VISTA_MATERIAL(main);
   if(ruta==='aprender')return partes[1]?VISTA_LECCION(main,+partes[1]):VISTA_APRENDER(main);
   return vistaInicio(main)}
 addEventListener('hashchange',pintar);
@@ -107,6 +110,9 @@ async function vistaInicio(main){
   if(p)t.append(html(`<button class="tarjeta seguir" id="t-seguir"><img class="mini" src="${p.mini}" alt=""><span><b>Seguir donde lo dejaste</b><span class="muted">${esc(p.nombre||'Apunte sin nombre')} · ${NOMBRE_ETAPA[u.etapa]||''}</span></span></button>`));
   t.append(html(`<button class="tarjeta" id="t-foto"><span class="tic">${ICONO('foto')}</span><span><b>Nueva foto</b><span class="muted">Encuadra, encaja la perspectiva, planifica los valores y saca la paleta</span></span></button>`));
   t.append(html(`<a class="boton tarjeta" href="#natural"><span class="tic">${ICONO('horizonte')}</span><span><b>Al natural</b><span class="muted">Con la cámara: tu horizonte en vivo, a la altura de tus ojos</span></span></a>`));
+  t.append(html(`<a class="boton tarjeta" href="#sol"><span class="tic">${ICONO('sol')}</span><span><b>Sol y sombras</b><span class="muted">De dónde vendrá la luz a cada hora, y cuánto miden las sombras</span></span></a>`));
+  t.append(html(`<a class="boton tarjeta" href="#rutas"><span class="tic">${ICONO('lugar')}</span><span><b>Rutas y retos por Almería</b><span class="muted">${SITIOS.length} sitios para dibujar, cada uno con su reto</span></span></a>`));
+  t.append(html(`<a class="boton tarjeta" href="#material"><span class="tic">${ICONO('mochila')}</span><span><b>Lista de material</b><span class="muted">Lo que llevas al salir, con recordatorio en tu calendario</span></span></a>`));
   t.append(html(`<a class="boton tarjeta" href="#aprender"><span class="tic">${ICONO('perspectiva')}</span><span><b>Aprender perspectiva</b><span class="muted">${LECCIONES.length} lecciones con dibujos que se mueven</span></span></a>`));
   t.append(html(`<a class="boton tarjeta" href="#mis"><span class="tic">${ICONO('cuaderno')}</span><span><b>Mis apuntes</b><span class="muted">Las fotos que has trabajado, guardadas en este móvil</span></span></a>`));
   t.append(html(`<button class="tarjeta" id="t-ejemplo"><span class="tic">${ICONO('imagen')}</span><span><b>Probar con un ejemplo</b><span class="muted">Una esquina inventada, para ver cómo funciona sin buscar una foto</span></span></button>`));

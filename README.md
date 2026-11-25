@@ -9,16 +9,19 @@ Enlace para instalarla en el móvil: https://indalo-apps.github.io/urban-sketchi
 
 ## Qué tiene (rutas con `#`)
 
-- **Inicio** (`#inicio`): seguir donde se dejó, nueva foto, Al natural, Aprender, Mis apuntes y un ejemplo inventado.
+- **Inicio** (`#inicio`): seguir donde se dejó, nueva foto, Al natural, Sol y sombras, Rutas y retos, Lista de material, Aprender, Mis apuntes y un ejemplo inventado.
 - **Un apunte** (`#foto/<id>/<etapa>`), en seis etapas:
   1. **Encuadre**: recorte con la proporción del cuaderno (A5 apaisado o vertical, cuadrado, doble página), guía de tercios y de cielo y suelo (5:8, 8:5, 5:7, 7:5, 5:13, 13:5, de Masao Yamada).
   2. **Encaje**: rectas sobre las aristas del edificio, puntos de fuga (1, 2 o 3 puntos; con más de dos rectas, mínimos cuadrados), horizonte, rejilla, regla de las alturas de Mollière, cono de visión de 60°, «Pásalo a tu cuaderno» (dónde caen el horizonte y los puntos respecto al dibujo), personas a escala, medir alturas con el horizonte (razón doble, válida también con 3 puntos), otras fachadas C, D y E con su punto de fuga en el mismo horizonte, medir con el lápiz (ángulo con la horizontal y proporción respecto a una primera medida) y proporciones de una fachada (se deshace la perspectiva con el cono de visión y se dibujan los cuadrados que caben, como propone Stephanie Bower).
-  3. **Valores**: la foto en 2 (notan) a 5 tonos, con desenfoque (entrecerrar los ojos), cortes automáticos (k-medias) o a mano y plan de aguadas capa a capa.
-  4. **Color**: los colores principales (k-medias en CIELAB) con nombre, valor y temperatura, y con qué pinturas de la carta salen (una o dos y cuánta agua), más la tabla de mezclas. Cartas de Van Gogh, Daniel Smith y Cotman (las de Mosaicos), los 30 rotuladores Albrecht Dürer de Faber-Castell y «Mi caja», con hoja de pruebas para imprimir en PDF (`src/js/hoja.js`).
+  3. **Valores**: la foto en 2 (notan) a 5 tonos, con desenfoque (entrecerrar los ojos), cortes automáticos (k-medias) o a mano, plan de aguadas capa a capa, mapa de bordes (Sobel con adelgazado e histéresis: qué contornos merecen tinta) y trama (cada tono en líneas paralelas, cruzadas o puntos, como enumera Sarah Haley).
+  4. **Color**: los colores principales (k-medias en CIELAB) con nombre, valor y temperatura, y con qué pinturas de la carta salen (una o dos y cuánta agua), más la tabla de mezclas y la «Paleta limitada» (las 3 pinturas que mejor cubren toda la foto, con una sola o dos de ellas; `COLOR.paletaLimitada`, un generador que no bloquea el móvil). Cartas de Van Gogh, Daniel Smith y Cotman (las de Mosaicos), los 30 rotuladores Albrecht Dürer de Faber-Castell y «Mi caja», con hoja de pruebas para imprimir en PDF (`src/js/hoja.js`).
   5. **Resumen**: tarjeta en imagen para compartir, descargar o copiar como texto.
   6. **Comparar**: la foto de tu apunte encima de la foto, transparente o en «diferencia», con el horizonte y las fugas (el «sight sizing» de Brehm).
 - **Al natural** (`#natural`): cámara con el horizonte en vivo según la inclinación del móvil, verticales y personas a escala; la foto pasa a Encaje con el horizonte medido.
-- **Aprender** (`#aprender`, cada lección en `#aprender/<n>`): 19 lecciones con escenas 3D sencillas (`ESCENA`).
+- **Sol y sombras** (`#sol`): posición del sol (fórmulas aproximadas del U.S. Naval Observatory, `src/js/sol.js`) en Almería o en tu ubicación, con la escena desde donde miras (sombra propia y arrojada, punto de fuga de las sombras de Sarah Haley), brújula, largo de las sombras, salida, puesta, mediodía solar y horas doradas.
+- **Rutas y retos** (`#rutas`): 17 sitios de Almería y su provincia con un reto y su lección, más retos para cualquier sitio; se marcan como hechos.
+- **Lista de material** (`#material`): lista para marcar, editable, para compartir y con recordatorio en el calendario (archivo `.ics` con aviso).
+- **Aprender** (`#aprender`, cada lección en `#aprender/<n>`): 21 lecciones con escenas 3D sencillas (`ESCENA`).
 - **Mis apuntes** (`#mis`): fotos y apuntes guardados solo en el móvil (IndexedDB).
 
 Las mezclas usan un modelo espectral: cada pintura se convierte en un espectro de reflectancia suave (sigmoide de un polinomio, Jakob y Hanika, 2019) y se mezcla con Kubelka-Munk longitud de onda a longitud de onda. Es una aproximación.
@@ -47,7 +50,7 @@ Los textos y los dibujos de la app son propios, rehechos a partir de las explica
 Sigue la «Guía común para nuestras apps» (proyecto APPS de Claude). Se escribe por partes en `src/` y se publica en un solo `index.html`:
 
 - `node herramientas/construir.js` junta las partes; con `--ver` comprueba que `index.html` está al día.
-- `npm test`: comprueba que `index.html` está al día, pasa `pruebas/calculos.js` (perspectiva y color con una cámara simulada: puntos de fuga, horizonte, cono, alturas, horizonte del móvil, CIEDE2000, mezclas) y `pruebas/navegador.js` (todas las pantallas en claro y oscuro, móvil, iPad y ordenador, con axe y sin errores).
+- `npm test`: comprueba que `index.html` está al día, pasa `pruebas/calculos.js` (perspectiva y color con una cámara simulada: puntos de fuga, horizonte, cono, alturas, horizonte del móvil, CIEDE2000, mezclas, paleta limitada, posición del sol) y `pruebas/navegador.js` (todas las pantallas en claro y oscuro, móvil, iPad y ordenador, con axe y sin errores).
 
 ## Cómo sacar una versión nueva
 
