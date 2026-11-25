@@ -1,0 +1,72 @@
+<header class="cab">
+  <button class="volver" id="volver" hidden></button>
+  <span class="hueco" aria-hidden="true"></span>
+  <a class="boton btn-redondo" id="casa" href="#inicio" aria-label="Inicio" title="Inicio" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11.5L12 4l8.5 7.5"/><path d="M6 9.8V20h4.5v-5.5h3V20H18V9.8"/></svg></a>
+  <button class="btn-redondo" id="btn-ajustes" aria-label="Ajustes" title="Ajustes"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></button>
+</header>
+<main><div class="titulo" id="titulo"><h1 id="h1">Urban Sketching</h1><p class="sub" id="sub" hidden></p></div>
+<div id="app"></div>
+<p class="sr" id="vivo" aria-live="polite"></p></main>
+<footer><button class="pie-ajustes" id="btn-version">Ajustes · Versión · Novedades</button><br>© 2026 Carlos Moreno Otto.</footer>
+<input type="file" id="archivo" accept="image/*" hidden>
+
+<div class="dlg" id="dlg-ajustes" hidden role="dialog" aria-modal="true" aria-labelledby="aj-tit">
+ <div class="hoja">
+  <button class="x" id="aj-x" aria-label="Cerrar">✕</button>
+  <h2 id="aj-tit">Ajustes</h2>
+  <div class="grupo"><h3>Apariencia</h3>
+   <p>Tamaño de letra</p><div class="ops" data-op="letra" role="group" aria-label="Tamaño de letra"><button data-val="normal">Normal</button><button data-val="grande">Grande</button><button data-val="muy-grande">Muy grande</button></div>
+   <p style="margin-top:10px">Tema</p><div class="ops" data-op="tema" role="group" aria-label="Tema"><button data-val="auto">Automático</button><button data-val="claro">Claro</button><button data-val="oscuro">Oscuro</button></div></div>
+  <div class="grupo"><h3>Para dibujar</h3>
+   <div class="fila"><label for="aj-ojo">Altura de tus ojos de pie (m)</label><input type="number" id="aj-ojo" min="0.5" max="2.2" step="0.01" inputmode="decimal" style="width:96px"></div>
+   <p class="muted">Se usa para medir alturas y colocar personas con la línea del horizonte. Sentado en un banco, baja a unos 1,15 m.</p>
+   <p style="margin-top:10px">Tus acuarelas</p><div class="ops" data-op="marca" role="group" aria-label="Marca de acuarelas"><button data-val="vg">Van Gogh</button><button data-val="ds">Daniel Smith</button><button data-val="wn">Cotman</button></div>
+   <div class="ops" style="margin-top:8px"><button id="aj-caja">🎨 Mi caja: qué pastillas tengo</button></div></div>
+  <div class="grupo"><h3>Instalar en el móvil</h3>
+   <div class="ops"><button id="aj-instalar">📲 Cómo añadirla a la pantalla de inicio</button></div></div>
+  <div class="grupo"><h3>Acerca de</h3>
+   <div class="acerca"><img src="icon-192.png" alt=""><div><b>Urban Sketching</b><br><span class="muted">Perspectiva, valores y color para dibujar la ciudad</span><br><span class="muted">Versión <span id="aj-ver"></span></span></div></div>
+   <p style="margin-top:10px">Creada por <b>Carlos Moreno Otto</b>.</p>
+   <p class="muted">© 2026 Carlos Moreno Otto. Todos los derechos reservados. Uso personal y educativo gratuito.</p>
+   <div class="ops" style="margin-top:10px"><button id="aj-contacto">✉️ Contacto y sugerencias</button><button id="aj-privacidad">🔒 Privacidad</button></div></div>
+  <div class="grupo"><h3>Los libros</h3><div id="aj-libros"></div></div>
+  <div class="grupo"><h3>Aviso</h3>
+   <p>Esta app es una ayuda para aprender y practicar el dibujo urbano y puede contener errores. Los colores en pantalla y las mezclas son aproximados: prueba siempre en un papel aparte. En caso de error o duda, la fuente fiable son los libros citados arriba.</p></div>
+  <div class="grupo"><h3>Versión</h3>
+   <p>Versión <b id="aj-ver2"></b>. Se actualiza sola cuando hay una versión nueva.</p>
+   <div class="ops"><button id="aj-buscar">🔄 Buscar actualizaciones</button><button id="aj-novedades">Ver novedades</button></div>
+   <p class="muted" id="aj-upd-msg" role="status" aria-live="polite" style="margin-top:8px"></p></div>
+  <button class="listo" id="aj-cerrar">Listo</button>
+ </div>
+</div>
+<div class="dlg" id="dlg-privacidad" hidden role="dialog" aria-modal="true" aria-labelledby="priv-tit">
+ <div class="hoja">
+  <button class="x" id="priv-x" aria-label="Cerrar">✕</button>
+  <h2 id="priv-tit">Privacidad</h2>
+  <p><b>Urban Sketching no recoge ningún dato personal.</b> No hay cuentas, ni anuncios, ni compras, ni estadísticas de uso, ni rastreo.</p>
+  <p>Tus fotos, tus apuntes y tus ajustes se guardan <b>solo en este dispositivo</b> (en el almacenamiento del navegador) y no se envían a nadie. Las fotos se analizan dentro del propio móvil. Si borras los datos del navegador o desinstalas la app, se borran también.</p>
+  <p>La cámara y el sensor de inclinación solo se usan en «Al natural», después de que tú los permitas, y la imagen no sale del móvil.</p>
+  <p class="muted">La app, con sus tipos de letra, se descarga de GitHub Pages (GitHub, Inc.), que como cualquier servidor web recibe la dirección IP al abrirla. Después funciona sin conexión.</p>
+  <button class="listo" id="priv-cerrar">Volver a Ajustes</button>
+ </div>
+</div>
+<div class="dlg" id="dlg-novedades" hidden role="dialog" aria-modal="true" aria-labelledby="nov-titulo">
+ <div class="hoja">
+  <button class="x" id="nov-x" aria-label="Cerrar">✕</button>
+  <h2 id="nov-titulo">Novedades</h2>
+  <div id="nov-lista" aria-live="polite"></div>
+  <button class="listo" id="nov-cerrar">Entendido</button>
+ </div>
+</div>
+<div class="dlg" id="dlg-caja" hidden role="dialog" aria-modal="true" aria-labelledby="caja-tit">
+ <div class="hoja">
+  <button class="x" id="caja-x" aria-label="Cerrar">✕</button>
+  <h2 id="caja-tit">Mi caja</h2>
+  <p class="muted" id="caja-txt">Marca las pastillas que llevas. Las mezclas se buscarán solo con ellas. Si no marcas ninguna (o solo una), se usa toda la carta.</p>
+  <div class="ops"><button id="caja-todas">Marcar todas</button><button id="caja-ninguna">Quitar todas</button></div>
+  <div class="lista-caja" id="caja-lista"></div>
+  <p class="muted" id="caja-cuenta" role="status" aria-live="polite"></p>
+  <button class="listo" id="caja-cerrar">Listo</button>
+ </div>
+</div>
+<div class="barra-act" id="barra-act" hidden role="status">Actualizando a la versión nueva…</div>

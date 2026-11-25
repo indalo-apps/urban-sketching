@@ -1,0 +1,15 @@
+{
+  "name": "urban-sketching",
+  "description": "Urban Sketching · Perspectiva, valores y color. La app se publica en un solo index.html, que se construye desde src/.",
+  "scripts": {
+    "construir": "node herramientas/construir.js",
+    "calculos": "node pruebas/calculos.js",
+    "navegador": "node pruebas/con-servidor.js pruebas/navegador.js",
+    "test": "node herramientas/construir.js --ver && node pruebas/calculos.js && node pruebas/con-servidor.js pruebas/navegador.js"
+  },
+  "devDependencies": {
+    "axe-core": "^4.14.1",
+    "playwright": "^1.65.1"
+  },
+  "private": true
+}

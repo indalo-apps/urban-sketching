@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><rect width="1024" height="1024" fill="#9a4527"/><g transform="translate(512 512) scale(1.0) translate(-512 -540)"><polygon points="512,250 300,446 300,706 512,760" fill="#fff" fill-opacity=".28"/>
+<polygon points="512,250 720,443 720,707 512,760" fill="#fff" fill-opacity=".55"/>
+<g stroke="#fff" stroke-width="10" stroke-dasharray="24 20" stroke-linecap="round" fill="none" opacity=".9">
+<line x1="300" y1="446" x2="80" y2="650"/><line x1="300" y1="706" x2="80" y2="650"/><line x1="720" y1="443" x2="944" y2="650"/><line x1="720" y1="707" x2="944" y2="650"/></g>
+<g stroke="#fff" stroke-width="14" stroke-linecap="round"><line x1="40" y1="650" x2="300" y2="650"/><line x1="720" y1="650" x2="984" y2="650"/></g>
+<g stroke="#fff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none">
+<polyline points="300,446 512,250 720,443"/><polyline points="300,706 512,760 720,707"/>
+<line x1="512" y1="250" x2="512" y2="760"/><line x1="300" y1="446" x2="300" y2="706"/><line x1="720" y1="443" x2="720" y2="707"/></g>
+<circle cx="80" cy="650" r="26" fill="#fff"/><circle cx="944" cy="650" r="26" fill="#fff"/></g></svg>
