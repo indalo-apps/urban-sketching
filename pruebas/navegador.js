@@ -21,6 +21,10 @@ const U='http://localhost:8765/index.html',CAP=process.env.CAPTURAS;
       if(CAP)await pg.screenshot({path:`${CAP}/${tema}_${ancho}_${r.replace(/\W/g,'_')}.png`,fullPage:false});
       await pg.evaluate(AX);const v=await pg.evaluate(async()=>(await axe.run(document,{runOnly:['wcag2a','wcag2aa','best-practice']})).violations.map(v=>v.id+'('+v.nodes.length+')'));
       for(const x of v)malas.set(x,(malas.get(x)||[]).concat(r))}
+    // Proporciones de una fachada del ejemplo (9 × 6 m y 8 × 6 m): la app deshace la perspectiva (máx. 3 % de error)
+    if(tema==='light'&&ancho===390){const pr=await pg.evaluate(id=>{location.hash='#foto/'+id+'/encaje';return new Promise(ok=>setTimeout(()=>{const cam=ESCENA.camara({ojo:1.6,yaw:-8,pitch:4,f:780,w:1200,h:900}),k=ESCENA.caja({x:-2,z:22,w:9,d:8,h:13,giro:38}),R=ENCAJE.calcular(US.p);
+        ok([[0,1,1.5],[1,2,8/6]].map(([i,j,esp])=>{const r=ENCAJE.proporcion(US.p,R,{a:cam.ver(k.esquinas.b[i]),b:cam.ver([k.esquinas.b[j][0],6,k.esquinas.b[j][2]])});return [esp,r.ratio]}))},600))},id);
+      for(const [esp,r] of pr)if(!(Math.abs(r/esp-1)<0.03))malas.set('proporcion '+esp+' → '+r,['encaje'])}
     // Ajustes abierto
     await pg.goto(U+'#inicio');await pg.waitForTimeout(300);await pg.click('#btn-ajustes');await pg.waitForTimeout(250);
     if(CAP)await pg.screenshot({path:`${CAP}/${tema}_${ancho}_ajustes.png`});

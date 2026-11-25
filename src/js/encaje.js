@@ -29,12 +29,46 @@ function dondeEn(P,eje){const [x0,y0,x1,y1]=rectEncuadre(),W=x1-x0,H=y1-y0;
   const r=(P[1]-y0)/H;if(r<0)return `a ${fmt(-r,1)} altos del dibujo por encima del borde`;if(r>1)return `a ${fmt(r-1,1)} altos del dibujo por debajo del borde`;return `dentro del dibujo, al ${Math.round((1-r)*100)} % desde abajo`}
 // Altura del horizonte en el centro del dibujo, de 0 (abajo) a 1 (arriba)
 function alturaHz(R){if(!R.h)return null;const [x0,y0,x1,y1]=rectEncuadre(),cx=(x0+x1)/2,d=GEOM.sub(R.h[1],R.h[0]),y=R.h[0][1]+d[1]/(d[0]||1e-9)*(cx-R.h[0][0]);return 1-(y-y0)/(y1-y0)}
-window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto,todas};
+/* Proporciones de una fachada (Stephanie Bower, «Proportions and measuring»: busca cuadrados).
+   a: esquina de abajo de un lado; b: esquina de arriba del otro lado. Con dos puntos de fuga en ángulo recto
+   se conoce la distancia del ojo (cono de visión) y se puede deshacer la perspectiva: la fachada se lleva a 3D
+   con los rayos de cada esquina y se mide de verdad. De frente (1 punto), la foto ya da la proporción. */
+const cr=(u,v)=>[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],dt=(u,v)=>u[0]*v[0]+u[1]*v[1]+u[2]*v[2],n3=u=>{const l=Math.hypot(...u)||1;return u.map(x=>x/l)};
+// Puntos de fuga posibles para la fachada, empezando por la familia cuyas rectas están más cerca de lo tocado
+function candidatos(s,R,a,b){const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],dseg=(q,u,v)=>{const d=GEOM.sub(v,u),L=GEOM.dot(d,d)||1,t=Math.max(0,Math.min(1,GEOM.dot(GEOM.sub(q,u),d)/L));return GEOM.dist(q,GEOM.add(u,GEOM.mul(d,t)))};
+  const cerca=f=>Math.min(...(s.lineas[f]||[]).map(l=>Math.min(dseg(m,l[0],l[1]),dseg(a,l[0],l[1]))),1e9);
+  return ['A','B',...(s.extra||[])].filter(f=>R[f]).sort((x,y)=>cerca(x)-cerca(y))}
+function proporcion(p,R,m){const s=p.pers,a=m.a,b=m.b;
+  if(s.modo===1||!R.h){const W=Math.abs(b[0]-a[0]),H=Math.abs(b[1]-a[1]);if(W<3||H<3)return {error:'Toca dos esquinas opuestas de la fachada.'};
+    const q=[a,[a[0],b[1]],b,[b[0],a[1]]];return {quad:q,ratio:W/H,frente:true,marcas:marcasPlanas(q,W/H)}}
+  if(s.modo===3)return {error:'Con tres puntos de fuga (mirando hacia arriba) la app aún no mide proporciones.'};
+  if(!R.cono||!R.cono.d)return {error:'Para medir proporciones de verdad hacen falta los puntos A y B de una misma esquina (las dos fachadas en ángulo recto).'};
+  const cand=candidatos(s,R,a,b);if(!cand.length)return {error:'Faltan los puntos de fuga: coloca antes las rectas A y B.'};
+  const f=cand.includes(m.vp)?m.vp:cand[0],V=R[f];
+  const fb=GEOM.corte([a,V],[b,[b[0],b[1]+1]]),nt=GEOM.corte([b,V],[a,[a[0],a[1]+1]]);if(!fb||!nt)return {error:'No se puede medir esa fachada.'};
+  const c=R.cono.cv,d=R.cono.d,ray=q=>[q[0]-c[0],q[1]-c[1],d];
+  let dH=n3(ray(V));let dV=n3(cr(ray(R.A),ray(R.B)));if(dV[1]>0)dV=dV.map(x=>-x);
+  const nP=cr(dH,dV),X1=ray(a),en=q=>{const r=ray(q),t=dt(nP,X1)/dt(nP,r);return r.map(x=>x*t)};
+  const Xf=en(fb),Xt=en(nt);let W=dt(Xf.map((x,i)=>x-X1[i]),dH);const H=dt(Xt.map((x,i)=>x-X1[i]),dV);
+  if(W<0){dH=dH.map(x=>-x);W=-W}if(H<=0)return {error:'Toca primero una esquina de abajo y después una de arriba.'};
+  const pr=X=>[c[0]+d*X[0]/X[2],c[1]+d*X[1]/X[2]],P=(u,v)=>pr(X1.map((x,i)=>x+dH[i]*u+dV[i]*v)),marcas=[];
+  if(W>=H)for(let k=1;k*H<W-1e-6&&k<=12;k++)marcas.push([P(k*H,0),P(k*H,H)]);else for(let k=1;k*W<H-1e-6&&k<=12;k++)marcas.push([P(0,k*W),P(W,k*W)]);
+  return {quad:[a,nt,b,fb],ratio:W/H,vp:f,cand,marcas}}
+function marcasPlanas(q,r){const [a,nt,b,fb]=q,out=[],W=fb[0]-a[0],H=nt[1]-a[1];
+  if(r>=1)for(let k=1;k*Math.abs(H)<Math.abs(W)-1e-6&&k<=12;k++){const x=a[0]+Math.sign(W)*k*Math.abs(H);out.push([[x,a[1]],[x,b[1]]])}
+  else for(let k=1;k*Math.abs(W)<Math.abs(H)-1e-6&&k<=12;k++){const y=a[1]+Math.sign(H)*k*Math.abs(W);out.push([[a[0],y],[b[0],y]])}return out}
+// En palabras: cuántos cuadrados caben
+function textoProporcion(r){const ancha=r>=1,v=ancha?r:1/r,n=Math.floor(v+1e-9),rem=v-n;
+  const num=['','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce'][n]||String(n);
+  let t=rem<0.1?(n===1?'un cuadrado':`${num} cuadrados`):rem<0.35?`${num} cuadrado${n>1?'s':''} y un cuarto`:rem<0.65?`${num} cuadrado${n>1?'s':''} y medio`:rem<0.9?`${num} cuadrado${n>1?'s':''} y tres cuartos`:`casi ${['','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece'][n+1]||n+1} cuadrados`;
+  t=t.replace(/^un cuadrado y/,'un cuadrado y');
+  return (ancha?`Ancho = ${fmt(v,2)} × alto: `:`Alto = ${fmt(v,2)} × ancho: `)+t+(ancha?' a lo ancho':' a lo alto')}
+window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto,todas,proporcion,textoProporcion};
 ETAPAS.encaje={pintar(cont){
   const p=US.p,s=p.pers;if(!s.lineas)s.lineas=porDefecto(p,s.modo);if(s.ojo==null)s.ojo=PREF.ojo;
   const {svg,barra,panel}=crearZona(cont);
   svg.setAttribute('aria-label','Foto con las rectas de perspectiva. Cada recta tiene dos puntos que se arrastran hasta apoyarla en una arista del edificio.');
-  let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,lapiz0=null,R={};if(!s.lapiz)s.lapiz=[];if(!s.extra)s.extra=[];
+  let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,lapiz0=null,prop0=null,R={};if(!s.lapiz)s.lapiz=[];if(!s.extra)s.extra=[];if(!s.props)s.props=[];
   // Medir con el lápiz (Brehm, «Pencil sighting»): ángulo con la horizontal y tamaño respecto a la primera raya
   function lapizTexto(m,i){const hz=R.h?GEOM.sub(R.h[1],R.h[0]):[1,0],d=GEOM.sub(m.b,m.a);let a=Math.abs((Math.atan2(d[1],d[0])-Math.atan2(hz[1],hz[0]))*180/Math.PI)%180;if(a>90)a=180-a;
     const ang=a<2?'horizontal':a>88?'vertical':fmt(a,0)+'° con la horizontal';if(i===0)return 'Medida 1 · '+ang;
@@ -80,6 +114,11 @@ ETAPAS.encaje={pintar(cont){
       const g=html(`<svg xmlns="${NS}">${ESCENA.siluetaSVG(b,t,'')}</svg>`).firstElementChild;g.setAttribute('fill','#141210');g.setAttribute('stroke','#fff');g.setAttribute('stroke-width',1.5*u);svg.append(g)}
     for(const m of s.medidas){linea(m.base,m.cima,{ancho:2.5});const a=R.h&&GEOM.altura(m.base,m.cima,R.h,ojo(),R.V);
       texto(m.cima[0]+8*u,(m.base[1]+m.cima[1])/2,a!=null&&a>0?fmt(a,a<10?2:1)+' m':'?')}
+    (s.props||[]).forEach((m,i)=>{const r=proporcion(p,R,m);if(r.error){texto(m.a[0]+8*u,m.a[1]-8*u,'?',{tam:14});return}
+      const q=r.quad;for(let k=0;k<4;k++)linea(q[k],q[(k+1)%4],{ancho:3.4});linea(q[0],q[2],{ancho:1.2,dash:'6 5'});linea(q[1],q[3],{ancho:1.2,dash:'6 5'});
+      for(const [u1,u2] of r.marcas)linea(u1,u2,{ancho:2,dash:'10 5'});
+      const cx=(q[0][0]+q[2][0])/2;texto(Math.min(q[0][0],q[2][0])+6*u,Math.min(q[1][1],q[2][1])-8*u,(i+1)+' · '+fmt(Math.max(r.ratio,1/r.ratio),2)+(r.ratio>=1?' : 1':' de alto'),{tam:13})});
+    if(prop0){el('rect',{x:prop0[0]-6*u,y:prop0[1]-6*u,width:12*u,height:12*u,fill:'#fff',stroke:'#141210','stroke-width':2.5*u},svg);texto(prop0[0]+10*u,prop0[1],'Ahora la esquina de arriba del otro lado')}
     (s.lapiz||[]).forEach((m,i)=>{linea(m.a,m.b,{ancho:3,dash:'1 5'});for(const q of [m.a,m.b])el('rect',{x:q[0]-4*u,y:q[1]-4*u,width:8*u,height:8*u,fill:'#fff',stroke:'#141210','stroke-width':2*u},svg);
       const t=lapizTexto(m,i);texto((m.a[0]+m.b[0])/2+8*u,(m.a[1]+m.b[1])/2-8*u,t,{tam:12})});
     if(lapiz0){el('rect',{x:lapiz0[0]-5*u,y:lapiz0[1]-5*u,width:10*u,height:10*u,fill:'#141210',stroke:'#fff','stroke-width':2*u},svg);texto(lapiz0[0]+10*u,lapiz0[1],'Ahora toca el otro extremo')}
@@ -113,6 +152,8 @@ ETAPAS.encaje={pintar(cont){
     if(s.herramienta==='personas'){if(!R.h){anunciar('Primero coloca las rectas para tener el horizonte.');return}
       if(GEOM.ladoHorizonte(pt,R.h)<=0){anunciar('Las personas tienen que estar de pie en el suelo, por debajo del horizonte.');return}
       s.personas.push([pt[0],pt[1]]);guardar();dibujar();anunciar('Persona colocada: sus pies donde has tocado y su cabeza cerca del horizonte.')}
+    else if(s.herramienta==='proporcion'){if(!prop0){prop0=pt;dibujar();anunciar('Esquina de abajo marcada. Ahora toca la esquina de arriba del otro lado de la fachada.')}
+      else{const m={a:prop0,b:pt};prop0=null;const r=proporcion(p,R,m);if(r.error){dibujar();anunciar(r.error);return}m.vp=r.vp;s.props.push(m);guardar();dibujar();pintarProp();anunciar(textoProporcion(r.ratio)+'.')}}
     else if(s.herramienta==='lapiz'){if(!lapiz0){lapiz0=pt;dibujar();anunciar('Primer extremo marcado. Toca el otro.')}
       else{s.lapiz.push({a:lapiz0,b:pt});lapiz0=null;guardar();dibujar();anunciar(lapizTexto(s.lapiz[s.lapiz.length-1],s.lapiz.length-1).replace('×','mide ').replace(' · ',' veces la medida 1, '))}}
     else if(s.herramienta==='medir'){if(!R.h){anunciar('Primero coloca las rectas para tener el horizonte.');return}
@@ -144,6 +185,10 @@ ETAPAS.encaje={pintar(cont){
     const ang=GEOM.anguloFoto(p.w,p.h,R.cono.d),sep=GEOM.dist(R.A,R.B)/p.w;
     c.innerHTML=`<p>La foto abarca unos <span class="dato">${fmt(ang,0)}°</span> en diagonal.${ang>70?' Es más que los 60° que vemos con nitidez: los bordes salen estirados, como con un gran angular. Al dibujar, no copies esa deformación.':' Está dentro de lo que vemos con nitidez.'}</p>
       <p>Los puntos de fuga están a <span class="dato">${fmt(sep,1)}</span> anchos de foto uno del otro. ${sep<1.6?'Están muy juntos: en tu cuaderno sepáralos más, aunque se salgan del papel (Norling lo llama «el error de juntar los puntos»).':'Es una separación cómoda: el edificio no se deforma.'}</p>`}
+  // ---- lista de proporciones medidas ----
+  function pintarProp(){const z=$('#ej-prop');if(!z)return;if(!s.props.length){z.innerHTML='';return}
+    z.innerHTML='<ul class="lista" style="margin-top:8px">'+s.props.map((m,i)=>{const r=proporcion(p,R,m);return `<li><b>Fachada ${i+1}:</b> ${r.error?esc(r.error):esc(textoProporcion(r.ratio))+(r.frente?' (vista de frente)':'')}${r.cand&&r.cand.length>1?` <button data-otrovp="${i}" style="min-height:44px">Usar el punto ${r.cand[(r.cand.indexOf(r.vp)+1)%r.cand.length]}</button>`:''}</li>`}).join('')+'</ul>';
+    z.querySelectorAll('[data-otrovp]').forEach(b=>b.onclick=()=>{const m=s.props[+b.dataset.otrovp],r=proporcion(p,R,m);m.vp=r.cand[(r.cand.indexOf(r.vp)+1)%r.cand.length];guardar();dibujar();pintarProp()})}
   // ---- panel ----
   function pintarPanel(){panel.innerHTML='';
     const c1=html(`<div class="caja"><h2 class="ch">Puntos de fuga</h2><div class="ops" role="group" aria-label="Tipo de perspectiva">
@@ -169,16 +214,16 @@ ETAPAS.encaje={pintar(cont){
     c3.addEventListener('click',ev=>{const b=ev.target.closest('[data-ver]');if(!b)return;s[b.dataset.ver]=!s[b.dataset.ver];b.setAttribute('aria-pressed',s[b.dataset.ver]);guardar();dibujar()});
     c3.querySelector('#ej-dens').oninput=ev=>{s.densidad=+ev.target.value;guardar();dibujar()};
     const c4=html(`<div class="caja"><h2 class="ch">Personas y medidas</h2><div class="ops" role="group" aria-label="Qué hace un toque en la foto">
-      <button data-herr="rectas" aria-pressed="${s.herramienta==='rectas'}">✋ Mover rectas</button><button data-herr="personas" aria-pressed="${s.herramienta==='personas'}">🧍 Poner personas</button><button data-herr="medir" aria-pressed="${s.herramienta==='medir'}">📏 Medir alturas</button><button data-herr="lapiz" aria-pressed="${s.herramienta==='lapiz'}">✏ Medir con el lápiz</button></div>
-      <p class="muted" style="margin-top:8px">${s.herramienta==='personas'?'Toca en el suelo donde está de pie una persona: la app la dibuja con 1,70 m. Si estabas de pie, su cabeza queda cerca del horizonte, esté cerca o lejos.':s.herramienta==='medir'?'Toca el pie de algo que esté en el suelo (una puerta, una farola) y después su parte de arriba. La altura sale de la del horizonte, que está a la altura de tus ojos.':s.herramienta==='lapiz'?'Como el lápiz con el pulgar (Brehm): toca los dos extremos de algo. La primera raya es la medida 1; las siguientes dicen cuántas veces la miden y qué ángulo forman con la horizontal (un alero, una cuesta).':'Arrastra los puntos de las rectas, o elige uno y usa las flechas.'}</p>
+      <button data-herr="rectas" aria-pressed="${s.herramienta==='rectas'}">✋ Mover rectas</button><button data-herr="personas" aria-pressed="${s.herramienta==='personas'}">🧍 Poner personas</button><button data-herr="medir" aria-pressed="${s.herramienta==='medir'}">📏 Medir alturas</button><button data-herr="lapiz" aria-pressed="${s.herramienta==='lapiz'}">✏ Medir con el lápiz</button><button data-herr="proporcion" aria-pressed="${s.herramienta==='proporcion'}">▦ Proporciones</button></div><div id="ej-prop" aria-live="polite"></div>
+      <p class="muted" style="margin-top:8px">${s.herramienta==='personas'?'Toca en el suelo donde está de pie una persona: la app la dibuja con 1,70 m. Si estabas de pie, su cabeza queda cerca del horizonte, esté cerca o lejos.':s.herramienta==='medir'?'Toca el pie de algo que esté en el suelo (una puerta, una farola) y después su parte de arriba. La altura sale de la del horizonte, que está a la altura de tus ojos.':s.herramienta==='proporcion'?'Como Stephanie Bower: busca cuadrados. Toca la esquina de abajo de un lado de una fachada y luego la de arriba del otro lado. La app deshace la perspectiva, mide la fachada de verdad y dibuja los cuadrados que caben y sus diagonales, que marcan el centro.':s.herramienta==='lapiz'?'Como el lápiz con el pulgar (Brehm): toca los dos extremos de algo. La primera raya es la medida 1; las siguientes dicen cuántas veces la miden y qué ángulo forman con la horizontal (un alero, una cuesta).':'Arrastra los puntos de las rectas, o elige uno y usa las flechas.'}</p>
       <div class="fila"><label for="ej-ojo">Altura de tus ojos al hacer la foto (m)</label><input type="number" id="ej-ojo" min="0.3" max="60" step="0.01" value="${ojo()}" style="width:96px" inputmode="decimal"></div>
       <div class="ops"><button data-ojo="${PREF.ojo}">De pie</button><button data-ojo="1.15">Sentado</button><button data-borrar="1">Quitar personas y medidas</button></div></div>`);
     c4.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
-      if(b.dataset.herr){s.herramienta=b.dataset.herr;medida0=null;lapiz0=null;sel=null;guardar();pintarPanel();dibujar()}
+      if(b.dataset.herr){s.herramienta=b.dataset.herr;medida0=null;lapiz0=null;prop0=null;sel=null;guardar();pintarPanel();dibujar()}
       if(b.dataset.ojo){s.ojo=+b.dataset.ojo;c4.querySelector('#ej-ojo').value=s.ojo;guardar();dibujar()}
-      if(b.dataset.borrar){s.personas=[];s.medidas=[];s.lapiz=[];medida0=null;lapiz0=null;guardar();dibujar();anunciar('Personas y medidas quitadas.')}});
+      if(b.dataset.borrar){s.personas=[];s.medidas=[];s.lapiz=[];s.props=[];prop0=null;medida0=null;lapiz0=null;guardar();dibujar();anunciar('Personas y medidas quitadas.')}});
     c4.querySelector('#ej-ojo').onchange=ev=>{const v=parseFloat(String(ev.target.value).replace(',','.'));if(v>0){s.ojo=v;guardar();dibujar()}};
-    panel.append(c1,c2,c4,c3);
+    panel.append(c1,c2,c4,c3);pintarProp();
     if(s.herramienta==='rectas'){const pad=html('<div class="caja"></div>');padMover(pad,d=>{if(sel)mover(sel,null,d);else anunciar('Elige antes un punto tocándolo.')},'Mover el punto elegido:');panel.append(pad)}
     if(s.h0)panel.append(html('<p class="nota">La línea de puntitos finos es el horizonte que midió el móvil al hacer la foto en «Al natural». Tu horizonte debería quedar cerca.</p>'));
     panel.append(html(`<p class="nota"><b>Regla de Mollière:</b> desde la arista más cercana, las horizontales suben o bajan según estén por debajo o por encima de tu horizonte. Según él, ahí está el 80 % de la perspectiva.</p>`));

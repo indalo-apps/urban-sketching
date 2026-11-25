@@ -49,8 +49,10 @@ ETAPAS.color={pintar(cont){
       <span class="mz" data-mz="${i}"><span class="mezcla muted">Buscando la mezcla…</span></span></span></button>`))});
     lista.addEventListener('click',e=>{const b=e.target.closest('[data-sel]');if(!b)return;c.sel=+b.dataset.sel;guardar();render();
       lista.querySelectorAll('[data-sel]').forEach(x=>{const on=+x.dataset.sel===c.sel;x.classList.toggle('sel',on);x.setAttribute('aria-pressed',on)});$('#co-todo').setAttribute('aria-pressed','false');anunciar('Color '+(c.sel+1)+' resaltado en la foto')});
-    const c3=html(`<div class="caja"><h2 class="ch">Tabla de mezclas</h2><div id="co-tabla"><p class="muted">Se prepara cuando estén las mezclas…</p></div></div>`);
+    const c3=html(`<div class="caja"><h2 class="ch">Tabla de mezclas</h2><div id="co-tabla"><p class="muted">Se prepara cuando estén las mezclas…</p></div><div class="ops" style="margin-top:10px"><button id="co-hoja">🖨 Hoja de pruebas para pintar (PDF)</button></div><p class="muted" id="co-hoja-msg" role="status" aria-live="polite"></p></div>`);
+    c3.querySelector('#co-hoja').onclick=()=>HOJA.descargar(t=>{const m=$('#co-hoja-msg');if(m)m.textContent=t});
     panel.append(c1,lista,c3);
+    if(carta.rotulador)panel.append(html(`<p class="nota"><b>Con rotuladores:</b> las mezclas se hacen superponiendo capas o juntándolas con el pincel de agua; la proporción dice cuánto de cada uno. Según Faber-Castell, el orden importa: amarillo sobre azul no da lo mismo que azul sobre amarillo. Para oscurecer, mejor el complementario que el negro.</p>`));
     panel.append(html(`<p class="nota">Los colores en pantalla y las mezclas son aproximados: dependen de la pantalla, del papel y de cada pintura (algunas granulan o se aclaran al secar). Prueba siempre en un trozo de papel aparte.</p>`));
     panel.append(botonSiguiente('color'));
     mezclas((res,fin)=>{res.forEach((ops,i)=>{const z=lista.querySelector(`[data-mz="${i}"]`);if(!z||z.dataset.ok)return;z.dataset.ok=1;

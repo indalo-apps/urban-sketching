@@ -67,6 +67,21 @@ const LECCIONES=[
    'En la calle, busca primero la arista más cercana: desde ella salen las dos fachadas, cada una hacia su punto.'],
   f:'Ernest Norling, pasos 5 a 7; Sarah Haley, cap. 4; Robert Pastrana, cap. 5.',
   d:v=>{const cam=ESCENA.camara({ojo:1.6,f:330,w:600,h:380});return svgEscena(cam,[ESCENA.caja({x:0,z:17,w:9,d:9,h:11,giro:v.giro,ventanas:true})],{personas:[[-3,10,1.7]]})}},
+ {id:'cuadrados',t:'Busca cuadrados',c:[['ancho','Ancho de la fachada',3,15,0.5,9,v=>fmt(v,1)+' m'],['alto','Alto hasta el alero',3,9,0.5,6,v=>fmt(v,1)+' m']],
+  p:['Para que un edificio no salga demasiado alto ni demasiado ancho, Stephanie Bower aconseja verlo primero como formas sencillas (cuadrados y rectángulos) y medir con el lápiz cuántas veces cabe el alto en el ancho. Cerrar un ojo ayuda, porque aplana lo que ves.',
+   'Esa proporción es la que pasas al papel: no importa el tamaño, sino la relación. Esta fachada mide, por ejemplo, un cuadrado y medio.',
+   'Y para encontrar el centro de una pared (donde va el pico del tejado o la puerta principal), traza sus diagonales: se cruzan en el centro, también en perspectiva. En la etapa Encaje, «Proporciones» hace todo esto sobre tu foto, deshaciendo la perspectiva.'],
+  x:v=>ENCAJE.textoProporcion(v.ancho/v.alto)+'.',
+  f:'Stephanie Bower, «Proportions and measuring» y el uso de las diagonales; Matthew Brehm, «Pencil sighting».',
+  d:v=>{const k=Math.min(470/v.ancho,250/(v.alto+2.5)),W=v.ancho*k,H=v.alto*k,x0=300-W/2,y0=350,top=y0-H,pk=top-1.6*k;
+   let s=`<rect width="600" height="380" fill="#fbf7ee"/><polygon points="${x0},${y0} ${x0+W},${y0} ${x0+W},${top} ${x0},${top}" fill="${LAMINA.caras[0]}" stroke="${LAMINA.tinta}" stroke-width="2.6"/>`;
+   s+=`<polygon points="${x0-8},${top} ${x0+W+8},${top} ${300},${pk}" fill="${LAMINA.techo}" stroke="${LAMINA.tinta}" stroke-width="2.6"/>`;
+   const dw=Math.min(1.4*k,W*0.25);s+=`<rect x="${300-dw/2}" y="${y0-2.3*k}" width="${dw}" height="${2.3*k}" fill="${LAMINA.tinta}" fill-opacity=".55"/>`;
+   for(const fx of [.2,.8])if(W>4*k)s+=`<rect x="${x0+W*fx-0.6*k}" y="${top+H*0.2}" width="${1.2*k}" height="${1.5*k}" fill="${LAMINA.tinta}" fill-opacity=".55"/>`;
+   const r=v.ancho/v.alto;if(r>=1){for(let i=1;i*H<W-1e-6;i++)s+=`<line x1="${x0+i*H}" y1="${top}" x2="${x0+i*H}" y2="${y0}" stroke="${LAMINA.guia}" stroke-width="2.2" stroke-dasharray="10 5"/>`}
+   else{for(let i=1;i*W<H-1e-6;i++)s+=`<line x1="${x0}" y1="${y0-i*W}" x2="${x0+W}" y2="${y0-i*W}" stroke="${LAMINA.guia}" stroke-width="2.2" stroke-dasharray="10 5"/>`}
+   s+=`<line x1="${x0}" y1="${y0}" x2="${x0+W}" y2="${top}" stroke="${LAMINA.tinta}" stroke-width="1.2" stroke-dasharray="4 4"/><line x1="${x0+W}" y1="${y0}" x2="${x0}" y2="${top}" stroke="${LAMINA.tinta}" stroke-width="1.2" stroke-dasharray="4 4"/><line x1="300" y1="${pk}" x2="300" y2="${y0}" stroke="${LAMINA.tinta}" stroke-width="1" stroke-dasharray="2 4"/>`;
+   return s+etiqueta(12,28,fmt(Math.max(r,1/r),2)+(r>=1?' cuadrados a lo ancho':' cuadrados a lo alto'),18)}},
  {id:'muchos',t:'Muchos puntos de fuga',c:[['giro','Giro de la casa del centro',5,85,1,30,v=>fmt(v,0)+'°']],
   p:['En las calles de verdad, sobre todo en los cascos antiguos, las casas no están alineadas en una cuadrícula: cada fachada mira hacia un lado y tiene su propio punto de fuga. Matthew Brehm llega a contar seis en una sola calle.',
    'La buena noticia: si las fachadas son verticales y sus aleros horizontales, todos esos puntos están en la misma línea, el horizonte. Basta con encontrarlo una vez.',
@@ -131,6 +146,36 @@ const LECCIONES=[
      s+=`<line x1="${F.p[0]}" y1="${F.p[1]}" x2="${S.p[0]}" y2="${S.p[1]}" stroke="${LAMINA.tinta}" stroke-width="1" stroke-dasharray="2 3"/>`;
      if(S.p[1]>-10&&S.p[1]<390)s+=`<circle cx="${S.p[0]}" cy="${S.p[1]}" r="9" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`+etiqueta(S.p[0]+14,S.p[1]+5,'fuga de la cuesta',17)}
    return svgEscena(cam,c,{antes,despues:s,letras:false})}},
+ {id:'escaleras',t:'Escaleras',c:[['n','Peldaños',3,14,1,8,v=>String(v)],['ojo','Altura de tus ojos',0.6,6,0.1,1.6,m]],
+  p:['Phil Metzger aconseja imaginar primero la escalera como una cuña, una rampa que va del suelo hasta donde llega. La pendiente de esa rampa fuga a un punto por encima del horizonte, como una calle en cuesta.',
+   'Después se divide la altura en tantos peldaños iguales como haga falta y se llevan esas marcas hacia el punto de fuga de la fachada. Con ellas se levantan las tabicas, que son verticales, y las huellas, que son horizontales.',
+   'Fíjate en las huellas: de los peldaños que quedan cerca de la altura de tus ojos ves muy poca huella, y de los de abajo, más. Por encima de tus ojos ya no se ven: solo se ven las tabicas y los bordes.'],
+  f:'Phil Metzger, parte 3, problema 8 («Stairs»); Craig Attebery, capítulos de planos inclinados.',
+  d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:400,w:600,h:380,yaw:22,cx:-4.5}),n=v.n,run=4/n,rise=2.4/n,c=[];
+   for(let i=0;i<n;i++)c.push(ESCENA.caja({x:0,z:7+i*run+run/2,w:3.2,d:run,h:(i+1)*rise,color:i%2?'#efe3cc':'#e2d2b6'}));
+   c.push(ESCENA.caja({x:0,z:12.5,w:8,d:3,h:2.4,color:'#e2c9a6'}),ESCENA.caja({x:0,z:14.5,w:8,d:1,h:7,ventanas:true}));
+   const S=cam.dir([0,2.4,4]);let s='';
+   if(S&&S.delante){for(const x of [-1.6,1.6]){const q=cam.ver([x,0,7]);if(q)s+=`<line x1="${q[0]}" y1="${q[1]}" x2="${S.p[0]}" y2="${S.p[1]}" stroke="${LAMINA.guia}" stroke-width="1.4" stroke-dasharray="6 4"/>`}
+     if(S.p[1]>-10&&S.p[1]<390)s+=`<circle cx="${S.p[0]}" cy="${S.p[1]}" r="9" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`+etiqueta(S.p[0]+14,S.p[1]+5,'fuga de la rampa',16)}
+   return svgEscena(cam,c,{despues:s,letras:false,guias:false})}},
+ {id:'arcos',t:'Arcos y círculos',c:[['giro','Giro de la pared',-55,55,1,30,v=>fmt(v,0)+'°'],['ojo','Altura de tus ojos',0.5,6,0.1,1.6,m]],
+  p:['Los círculos casi nunca se ven redondos: en perspectiva son elipses. Stephanie Bower lo resuelve con un cuadrado. Primero dibuja un cuadrado en perspectiva, con sus puntos de fuga. Después traza sus diagonales para encontrar el centro.',
+   'Por ese centro, las líneas que dividen el cuadrado en cuatro tocan sus lados en los cuatro puntos por donde pasa la elipse. Solo queda unirlos con curvas suaves. Con medio cuadrado sale un arco: el de una puerta, una ventana o una bóveda.',
+   'Un detalle que avisa Bower: la parte más ancha de la elipse no pasa por el centro del cuadrado, sino un poco más cerca de ti. Gira la pared y sube los ojos para ver cómo cambian.'],
+  f:'Stephanie Bower, capítulo de elipses, arcos y cúpulas; Phil Metzger, «Where circles become ellipses».',
+  d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:400,w:600,h:380}),k=ESCENA.caja({x:-2.6,z:10,w:7,d:0.6,h:5,giro:v.giro,color:'#efe1c6'});
+   const P=k.P,lz=-0.32,pp=a=>a.map(cam.ver),ok=a=>a.every(Boolean),pl=(a,ex)=>ok(a)?`<polyline points="${ESCENA.pts(a)}" fill="none" ${ex}/>`:'';let s='';
+   const G=`stroke="${LAMINA.guia}" stroke-width="1.3" stroke-dasharray="5 4"`,T=`stroke="${LAMINA.tinta}" stroke-width="2.6"`;
+   // arco de la puerta: medio cuadrado sobre las jambas
+   const r=1.3,y0=2.3,arco=[];for(let i=0;i<=40;i++){const t=Math.PI*i/40;arco.push(P(-r*Math.cos(t),y0+r*Math.sin(t),lz))}
+   const sq=pp([P(-r,y0,lz),P(r,y0,lz),P(r,y0+r,lz),P(-r,y0+r,lz),P(-r,y0,lz)]);s+=pl(sq,G)+pl(pp([P(-r,y0,lz),P(r,y0+r,lz)]),G)+pl(pp([P(r,y0,lz),P(-r,y0+r,lz)]),G)+pl(pp([P(0,y0,lz),P(0,y0+r,lz)]),G);
+   const hueco=pp([P(-r,0,lz),...arco,P(r,0,lz)]);if(ok(hueco))s+=`<polygon points="${ESCENA.pts(hueco)}" fill="${LAMINA.tinta}" fill-opacity=".5"/>`;s+=pl(hueco,T);
+   // círculo en el suelo (una fuente): cuadrado, diagonales, cruz y los cuatro puntos
+   const cx=2.1,cz=6,R2=1.3,C=(x,z)=>[cx+x,0,cz+z],sq2=pp([C(-R2,-R2),C(R2,-R2),C(R2,R2),C(-R2,R2),C(-R2,-R2)]);
+   s+=pl(sq2,G)+pl(pp([C(-R2,-R2),C(R2,R2)]),G)+pl(pp([C(R2,-R2),C(-R2,R2)]),G)+pl(pp([C(0,-R2),C(0,R2)]),G)+pl(pp([C(-R2,0),C(R2,0)]),G);
+   const el=[];for(let i=0;i<=64;i++){const t=2*Math.PI*i/64;el.push(C(R2*Math.cos(t),R2*Math.sin(t)))}const ep=pp(el);if(ok(ep))s+=`<polygon points="${ESCENA.pts(ep)}" fill="#86acd2" fill-opacity=".5" ${T}/>`;
+   for(const q of pp([C(0,-R2),C(R2,0),C(0,R2),C(-R2,0),P(-r,y0,lz),P(0,y0+r,lz),P(r,y0,lz)]))if(q)s+=`<circle cx="${q[0]}" cy="${q[1]}" r="5" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`;
+   return svgEscena(cam,[k],{despues:s,guias:false,letras:false})}},
  {id:'lapiz',t:'Mirar con el lápiz',c:[['giro','Giro del edificio',10,80,1,35,v=>fmt(v,0)+'°']],
   p:['Matthew Brehm propone dos trucos para comprobar el dibujo sin instrumentos. El primero es dibujar «a la medida»: sostén el cuaderno levantado junto al motivo y acércalo o aléjalo hasta que tu dibujo y lo que ves tengan el mismo tamaño. Así se ven enseguida los ángulos y las proporciones que se han ido.',
    'El segundo, con el lápiz: cierra un ojo, estira el brazo siempre igual y pon el lápiz horizontal junto al alero para ver qué ángulo forma. O úsalo de regla, marcando con el pulgar, para comparar un tamaño con otro: esta ventana es tan alta como ancha; esa fachada, dos veces la otra.',
