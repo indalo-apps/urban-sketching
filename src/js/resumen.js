@@ -9,7 +9,7 @@ async function tarjeta(mz){
   const lineas=[];// texto del cuaderno
   const a=ENCAJE.alturaHz(R);
   if(R.h)lineas.push('Horizonte: '+(a<0?'por debajo del dibujo':a>1?'por encima del dibujo':'al '+Math.round(a*100)+' % de la altura, desde abajo'));
-  if(R.A)lineas.push('Punto A: '+ENCAJE.dondeEn(R.A,'x'));if(R.B)lineas.push('Punto B: '+ENCAJE.dondeEn(R.B,'x'));if(R.V)lineas.push('Punto V: '+ENCAJE.dondeEn(R.V,'y'));
+  if(R.A)lineas.push('Punto A: '+ENCAJE.dondeEn(R.A,'x'));if(R.B)lineas.push('Punto B: '+ENCAJE.dondeEn(R.B,'x'));if(R.V)lineas.push('Punto V: '+ENCAJE.dondeEn(R.V,'y'));for(const f of (p.pers.extra||[]))if(R[f])lineas.push('Punto '+f+': '+ENCAJE.dondeEn(R[f],'x'));
   const v=p.val,D=VALORES.claridades(600,v.borroso),u=VALORES.cortes(v,D.L),T=VALORES.tonos(D.L,u);
   const plan=['Reserva los blancos ('+pct(T.cuenta[0])+')'];for(let k=1;k<v.n;k++)plan.push((k===1?'Aguada clara':k===v.n-1?'Oscuros':'Aguada media')+' ('+pct(T.cuenta.slice(k).reduce((s,b)=>s+b,0))+')');
   c.width=W;c.height=4000;
@@ -24,7 +24,7 @@ async function tarjeta(mz){
   x.save();x.beginPath();x.rect(M,y,colW,imgH);x.clip();x.translate(M-ex0*k,y-ey0*k);x.scale(k,k);x.lineWidth=2.4/k;x.strokeStyle='rgba(255,255,255,.9)';
   const lin=(a,b,d)=>{x.setLineDash(d.map(z=>z/k));x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=4.5/k;x.beginPath();x.moveTo(...a);x.lineTo(...b);x.stroke();x.strokeStyle='#141210';x.lineWidth=2/k;x.stroke()};
   if(R.h){const d=GEOM.norm(GEOM.sub(R.h[1],R.h[0]));lin(GEOM.add(R.h[0],GEOM.mul(d,-1e5)),GEOM.add(R.h[0],GEOM.mul(d,1e5)),[14,5])}
-  for(const f of ['A','B','V'])if(R[f])for(const ln of p.pers.lineas[f]||[]){const lejos=GEOM.dist(ln[0],R[f])>GEOM.dist(ln[1],R[f])?ln[0]:ln[1];lin(lejos,R[f],(TRAZO[f]||'').split(' ').filter(Boolean).map(Number))}
+  for(const f of ['A','B','V',...(p.pers.extra||[])])if(R[f])for(const ln of p.pers.lineas[f]||[]){const lejos=GEOM.dist(ln[0],R[f])>GEOM.dist(ln[1],R[f])?ln[0]:ln[1];lin(lejos,R[f],(TRAZO[f]||'').split(' ').filter(Boolean).map(Number))}
   x.restore();
   const ton=VALORES.TONOS[v.n].map(VALORES.Lg),tc=document.createElement('canvas');tc.width=D.w;tc.height=D.h;const tx=tc.getContext('2d'),id=tx.createImageData(D.w,D.h);
   for(let i=0,j=0;i<D.w*D.h;i++,j+=4){const g=ton[T.t[i]];id.data[j]=id.data[j+1]=id.data[j+2]=g;id.data[j+3]=255}tx.putImageData(id,0,0);

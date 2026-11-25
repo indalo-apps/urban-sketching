@@ -9,8 +9,8 @@ const pct=x=>Math.round(x*100)+' %';
 let vivoT=0;const anunciar=t=>{const v=$('#vivo');v.textContent='';clearTimeout(vivoT);vivoT=setTimeout(()=>v.textContent=t,60)};
 const US={p:null,img:null,url:null,id:null};// apunte abierto
 const ETAPAS={};// las rellenan encuadre.js, encaje.js, valores.js, paleta.js y resumen.js
-const ORDEN_ETAPAS=['encuadre','encaje','valores','color','resumen'];
-const NOMBRE_ETAPA={encuadre:'Encuadre',encaje:'Encaje',valores:'Valores',color:'Color',resumen:'Resumen'};
+const ORDEN_ETAPAS=['encuadre','encaje','valores','color','resumen','comparar'];
+const NOMBRE_ETAPA={encuadre:'Encuadre',encaje:'Encaje',valores:'Valores',color:'Color',resumen:'Resumen',comparar:'Comparar'};
 let guardarT=0;function guardar(){if(!US.p)return;clearTimeout(guardarT);guardarT=setTimeout(()=>ALMACEN.guardar(US.p),300)}
 const fecha=t=>new Date(t).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
 /* ---------- Apuntes ---------- */
@@ -180,4 +180,4 @@ function canvasRecorte(max){const [x0,y0,x1,y1]=rectEncuadre(),w=x1-x0,h=y1-y0,k
   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*k));c.height=Math.max(1,Math.round(h*k));
   c.getContext('2d').drawImage(US.img,x0,y0,w,h,0,0,c.width,c.height);return c}
 // Estilos de las tres familias de rectas: se distinguen por el trazo y la letra, no por el color
-const TRAZO={A:'',B:'10 6',V:'2 5'};
+const TRAZO={A:'',B:'10 6',V:'2 5',C:'16 5 3 5',D:'24 8',E:'3 3 12 3'};

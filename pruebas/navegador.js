@@ -1,6 +1,6 @@
 // Prueba en el navegador: crea el apunte de ejemplo y recorre todas las pantallas (inicio, las 5 etapas,
 // Al natural, Aprender y sus 12 lecciones, Mis apuntes y Ajustes) en claro y oscuro, móvil, iPad y ordenador;
-// pasa axe (accesibilidad) y falla si hay errores de JavaScript.
+// (y la etapa Comparar con un apunte de prueba) pasa axe (accesibilidad) y falla si hay errores de JavaScript.
 // Necesita Playwright, Chrome y axe-core:  npm i playwright axe-core
 // Uso: node pruebas/con-servidor.js pruebas/navegador.js       (CAPTURAS=/tmp/capturas para guardar imágenes)
 const {chromium}=require('playwright'),fs=require('fs');
@@ -13,8 +13,9 @@ const U='http://localhost:8765/index.html',CAP=process.env.CAPTURAS;
     const errs=[];pg.on('pageerror',e=>errs.push(e.message));pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
     await pg.goto(U+'#inicio');await pg.waitForTimeout(500);
     await pg.click('#t-ejemplo');await pg.waitForFunction(()=>location.hash.startsWith('#foto/'),null,{timeout:8000});await pg.waitForTimeout(400);
-    const id=await pg.evaluate(()=>location.hash.split('/')[1]);
-    const rutas=['#inicio','#mis','#natural','#aprender',...Array.from({length:12},(_,i)=>'#aprender/'+(i+1)),...['encuadre','encaje','valores','color','resumen'].map(e=>`#foto/${id}/${e}`)];
+    const id=await pg.evaluate(()=>location.hash.split('/')[1]),ORDEN=await pg.evaluate(()=>ORDEN_ETAPAS);
+    const nl=await pg.evaluate(()=>LECCIONES.length);
+    const rutas=['#inicio','#mis','#natural','#aprender',...Array.from({length:nl},(_,i)=>'#aprender/'+(i+1)),...ORDEN.map(e=>`#foto/${id}/${e}`)];
     const malas=new Map();
     for(const r of rutas){await pg.goto(U+r);await pg.waitForTimeout(r.endsWith('color')?2500:r.endsWith('resumen')?4500:350);
       if(CAP)await pg.screenshot({path:`${CAP}/${tema}_${ancho}_${r.replace(/\W/g,'_')}.png`,fullPage:false});

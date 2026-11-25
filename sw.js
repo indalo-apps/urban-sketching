@@ -1,7 +1,7 @@
 // © 2026 Carlos Moreno Otto. Todos los derechos reservados.
 // Service worker de Urban Sketching: permite usarla sin conexión.
 // Al subir una versión nueva, cambia el nombre de la caché y se borra la anterior.
-const CACHE = "urban-sketching-1.0";
+const CACHE = "urban-sketching-1.1";
 const PRECACHE = ["./", "index.html", "manifest.webmanifest", "icon.svg", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-152.png", "icon-167.png", "icon-maskable-512.png", "favicon-32.png",
   "fonts/inter-latin-400-normal.woff2", "fonts/inter-latin-500-normal.woff2", "fonts/inter-latin-600-normal.woff2", "fonts/inter-latin-700-normal.woff2",
   "fonts/cormorant-garamond-latin-600-normal.woff2", "fonts/cormorant-garamond-latin-500-italic.woff2"];

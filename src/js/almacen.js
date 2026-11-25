@@ -17,8 +17,9 @@ const ALMACEN=(function(){
   async function guardar(p){p.cambiado=Date.now();await listo;const c=JSON.parse(JSON.stringify(p));if(!db){memoria.proyectos.set(p.id,c);return}
     try{await tx('proyectos','readwrite',s=>s.put(c))}catch(e){}}
   async function guardarFoto(id,blob){await listo;if(!db){memoria.fotos.set(id,blob);return}try{await tx('fotos','readwrite',s=>s.put(blob,id))}catch(e){}}
-  async function borrar(id){await listo;if(!db){memoria.proyectos.delete(id);memoria.fotos.delete(id);return}
-    await tx('proyectos','readwrite',s=>s.delete(id));await tx('fotos','readwrite',s=>s.delete(id))}
+  async function borrarFoto(id){await listo;if(!db){memoria.fotos.delete(id);return}try{await tx('fotos','readwrite',s=>s.delete(id))}catch(e){}}
+  async function borrar(id){await listo;if(!db){memoria.proyectos.delete(id);memoria.fotos.delete(id);memoria.fotos.delete(id+'-apunte');return}
+    await tx('proyectos','readwrite',s=>s.delete(id));await tx('fotos','readwrite',s=>s.delete(id));await borrarFoto(id+'-apunte')}
   const persistente=async()=>{await listo;return !!db};
-  return {lista,leer,foto,guardar,guardarFoto,borrar,persistente}
+  return {lista,leer,foto,guardar,guardarFoto,borrarFoto,borrar,persistente}
 })();

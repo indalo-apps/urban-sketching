@@ -3,6 +3,7 @@
   const q=s=>document.querySelector(s);
   const VERSION=(q('meta[name="app-version"]')||{}).content||'dev';
   const NOVEDADES=[
+    ["1.1",["🏘 Encaje: «Otra fachada» para calles torcidas, con su punto de fuga en el mismo horizonte (Matthew Brehm). Basta una recta","✏ Encaje: «Medir con el lápiz», con el ángulo de cada línea con la horizontal y cuántas veces mide la primera","👁 Etapa nueva, Comparar: haz una foto de tu apunte y la app la pone encima de la foto, transparente o en «diferencia», con el horizonte y las fugas","📖 Cuatro lecciones nuevas: Muchos puntos de fuga, Perspectiva curvilínea, Mirar con el lápiz y Un apunte paso a paso"]],
     ["1.0",["📷 Nueva foto: encuadre, encaje, valores, color y resumen, en cinco etapas","📐 Encaje: puntos de fuga con 1, 2 o 3 puntos, horizonte, rejilla, cono de visión de 60° y cómo pasarlo a tu cuaderno","🧍 Personas a escala y medir alturas con la línea del horizonte","◐ Valores: la foto en 2 a 5 tonos y el plan de aguadas, capa a capa","🎨 Color: los colores de la foto con su nombre y con qué pinturas de tu carta salen (Van Gogh, Daniel Smith o Cotman), y la tabla de mezclas","🌅 Al natural: tu horizonte en vivo con la cámara","📖 Aprender: 12 lecciones con dibujos que se mueven","🖼 Tarjeta resumen en imagen para compartir"]],
   ];
   const verCmp=(a,b)=>{const x=String(a).split('.').map(Number),y=String(b).split('.').map(Number);for(let i=0;i<3;i++){const d=(x[i]||0)-(y[i]||0);if(d)return d}return 0};
@@ -53,7 +54,7 @@
     ['Bruno Mollière','La perspectiva en urban sketching. Trucos y técnicas para dibujantes','Gustavo Gili','2017'],
     ['Stephanie Bower','The Urban Sketching Handbook: Understanding Perspective','Quarry (Quarto)','2016'],
     ['Masao Yamada','A Beginner’s Guide to Sketching Buildings & Landscapes','Tuttle','2023'],
-    ['Matthew Brehm','Drawing Perspective: How to See It and How to Apply It','Barron’s','2016'],
+    ['Matthew Brehm','Drawing Perspective: How to See It and How to Apply It','Barron’s','2015'],
     ['Ernest R. Norling','Perspective Made Easy','Dover (1.ª ed. Macmillan, 1939)','1999'],
     ['Joseph D’Amelio','Perspective Drawing Handbook','Dover (1.ª ed. Tudor, 1964)','2004'],
     ['Robert Pastrana','Simplifying Perspective: A Step-by-Step Guide for Visual Artists','Focal Press','2015'],

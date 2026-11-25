@@ -8,6 +8,10 @@ function porDefecto(p,modo){const w=p.w,h=p.h,P=(x,y)=>[x*w,y*h];
   const L={A:[[P(.46,.18),P(.12,.33)],[P(.46,.86),P(.12,.72)]],B:[[P(.54,.18),P(.88,.33)],[P(.54,.86),P(.88,.72)]],V:[]};// A: fachada izquierda (fuga a la izquierda); B: derecha
   if(modo===3)L.V=[[P(.3,.15),P(.32,.85)],[P(.7,.15),P(.68,.85)]];return L}
 function familias(modo){return modo===1?['A']:modo===2?['A','B']:['A','B','V']}
+// Otras fachadas (Brehm, «Multi-point perspective»): en calles irregulares cada fachada tiene su punto de fuga,
+// y si sus horizontales lo son de verdad, ese punto está en el mismo horizonte. Basta una recta: se corta con él.
+const EXTRA=['C','D','E'];
+const todas=s=>familias(s.modo).concat(s.extra||[]);
 // Cálculo de lo que sale de las rectas
 function calcular(p){
   const s=p.pers,L=s.lineas,r={};
@@ -17,6 +21,7 @@ function calcular(p){
   else if(r.A||r.B){const q=r.A||r.B;r.h=[q,[q[0]+100,q[1]]]}
   if(r.h){const g=GEOM.angulo(r.h[0],r.h[1]);r.inclin=g;if(r.h[0][0]>r.h[1][0])r.h=[r.h[1],r.h[0]]}
   if(s.modo>=2&&r.A&&r.B)r.cono=GEOM.cono(r.A,r.B,[p.w/2,p.h/2],60);
+  for(const f of (s.extra||[])){const ls=L[f]||[];r[f]=ls.length>=2?GEOM.puntoFuga(ls):(ls.length===1&&r.h?GEOM.corte(ls[0],r.h):null)}
   return r}
 // Dónde cae un punto respecto al dibujo encuadrado, en palabras (para pasarlo al cuaderno)
 function dondeEn(P,eje){const [x0,y0,x1,y1]=rectEncuadre(),W=x1-x0,H=y1-y0;
@@ -24,15 +29,19 @@ function dondeEn(P,eje){const [x0,y0,x1,y1]=rectEncuadre(),W=x1-x0,H=y1-y0;
   const r=(P[1]-y0)/H;if(r<0)return `a ${fmt(-r,1)} altos del dibujo por encima del borde`;if(r>1)return `a ${fmt(r-1,1)} altos del dibujo por debajo del borde`;return `dentro del dibujo, al ${Math.round((1-r)*100)} % desde abajo`}
 // Altura del horizonte en el centro del dibujo, de 0 (abajo) a 1 (arriba)
 function alturaHz(R){if(!R.h)return null;const [x0,y0,x1,y1]=rectEncuadre(),cx=(x0+x1)/2,d=GEOM.sub(R.h[1],R.h[0]),y=R.h[0][1]+d[1]/(d[0]||1e-9)*(cx-R.h[0][0]);return 1-(y-y0)/(y1-y0)}
-window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto};
+window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto,todas};
 ETAPAS.encaje={pintar(cont){
   const p=US.p,s=p.pers;if(!s.lineas)s.lineas=porDefecto(p,s.modo);if(s.ojo==null)s.ojo=PREF.ojo;
   const {svg,barra,panel}=crearZona(cont);
   svg.setAttribute('aria-label','Foto con las rectas de perspectiva. Cada recta tiene dos puntos que se arrastran hasta apoyarla en una arista del edificio.');
-  let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,R={};
+  let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,lapiz0=null,R={};if(!s.lapiz)s.lapiz=[];if(!s.extra)s.extra=[];
+  // Medir con el lápiz (Brehm, «Pencil sighting»): ángulo con la horizontal y tamaño respecto a la primera raya
+  function lapizTexto(m,i){const hz=R.h?GEOM.sub(R.h[1],R.h[0]):[1,0],d=GEOM.sub(m.b,m.a);let a=Math.abs((Math.atan2(d[1],d[0])-Math.atan2(hz[1],hz[0]))*180/Math.PI)%180;if(a>90)a=180-a;
+    const ang=a<2?'horizontal':a>88?'vertical':fmt(a,0)+'° con la horizontal';if(i===0)return 'Medida 1 · '+ang;
+    const r=GEOM.len(d)/GEOM.len(GEOM.sub(s.lapiz[0].b,s.lapiz[0].a));return '×'+fmt(r,r<10?1:0)+' · '+ang}
   const ojo=()=>s.ojo||PREF.ojo;
   function viewBox(){const W=p.w*vista.k,H=p.h*vista.k;svg.setAttribute('viewBox',`${vista.cx-W/2} ${vista.cy-H/2} ${W} ${H}`);return [vista.cx-W/2,vista.cy-H/2,vista.cx+W/2,vista.cy+H/2]}
-  function verFugas(){const pts=[[0,0],[p.w,p.h]];for(const k of ['A','B','V'])if(R[k])pts.push(R[k]);
+  function verFugas(){const pts=[[0,0],[p.w,p.h]];for(const k of ['A','B','V',...(s.extra||[])])if(R[k])pts.push(R[k]);
     const lim=3;let x0=Math.min(...pts.map(q=>q[0])),x1=Math.max(...pts.map(q=>q[0])),y0=Math.min(...pts.map(q=>q[1])),y1=Math.max(...pts.map(q=>q[1]));
     x0=Math.max(x0,-p.w*lim);x1=Math.min(x1,p.w*(1+lim));y0=Math.max(y0,-p.h*lim);y1=Math.min(y1,p.h*(1+lim));
     const k=Math.max((x1-x0)/p.w,(y1-y0)/p.h)*1.12;vista={cx:(x0+x1)/2,cy:(y0+y1)/2,k:Math.max(1,k)}}
@@ -71,21 +80,25 @@ ETAPAS.encaje={pintar(cont){
       const g=html(`<svg xmlns="${NS}">${ESCENA.siluetaSVG(b,t,'')}</svg>`).firstElementChild;g.setAttribute('fill','#141210');g.setAttribute('stroke','#fff');g.setAttribute('stroke-width',1.5*u);svg.append(g)}
     for(const m of s.medidas){linea(m.base,m.cima,{ancho:2.5});const a=R.h&&GEOM.altura(m.base,m.cima,R.h,ojo(),R.V);
       texto(m.cima[0]+8*u,(m.base[1]+m.cima[1])/2,a!=null&&a>0?fmt(a,a<10?2:1)+' m':'?')}
+    (s.lapiz||[]).forEach((m,i)=>{linea(m.a,m.b,{ancho:3,dash:'1 5'});for(const q of [m.a,m.b])el('rect',{x:q[0]-4*u,y:q[1]-4*u,width:8*u,height:8*u,fill:'#fff',stroke:'#141210','stroke-width':2*u},svg);
+      const t=lapizTexto(m,i);texto((m.a[0]+m.b[0])/2+8*u,(m.a[1]+m.b[1])/2-8*u,t,{tam:12})});
+    if(lapiz0){el('rect',{x:lapiz0[0]-5*u,y:lapiz0[1]-5*u,width:10*u,height:10*u,fill:'#141210',stroke:'#fff','stroke-width':2*u},svg);texto(lapiz0[0]+10*u,lapiz0[1],'Ahora toca el otro extremo')}
     if(medida0){el('circle',{cx:medida0[0],cy:medida0[1],r:6*u,fill:'#141210',stroke:'#fff','stroke-width':2*u},svg);texto(medida0[0]+10*u,medida0[1],'Ahora toca la parte de arriba')}
     // rectas de cada familia, con su prolongación hasta el punto de fuga
-    const fams=familias(s.modo),activa=s.herramienta==='rectas';
+    const fams=todas(s),activa=s.herramienta==='rectas';
     for(const f of fams)s.lineas[f].forEach((ln,i)=>{const P=R[f];
       if(P){const lejos=GEOM.dist(ln[0],P)>GEOM.dist(ln[1],P)?ln[0]:ln[1];linea(lejos,P,{dash:TRAZO[f]||'',ancho:1.3,op:.9})}
       linea(ln[0],ln[1],{dash:TRAZO[f],ancho:3.2});
-      const m=[(ln[0][0]+ln[1][0])/2,(ln[0][1]+ln[1][1])/2];texto(m[0]+6*u,m[1]-6*u,NOMBRE[f]+(i+1),{tam:estrecho?12:14});
+      const m=[(ln[0][0]+ln[1][0])/2,(ln[0][1]+ln[1][1])/2];texto(m[0]+6*u,m[1]-6*u,(NOMBRE[f]||f)+(i+1),{tam:estrecho?12:14});
       if(activa)ln.forEach((q,j)=>{const id=`${f}:${i}:${j}`,on=sel===id;
-        const g=el('g',{'data-asa':id,tabindex:0,role:'button','aria-label':`Recta ${NOMBRE[f]}${i+1}, punto ${j+1}`,style:'cursor:grab'},svg);
+        const g=el('g',{'data-asa':id,tabindex:0,role:'button','aria-label':`Recta ${NOMBRE[f]||f}${i+1}, punto ${j+1}`,style:'cursor:grab'},svg);
         el('circle',{cx:q[0],cy:q[1],r:22*u,fill:'transparent'},g);
         el('circle',Object.assign({cx:q[0],cy:q[1],r:(on?11:8)*u,fill:on?'#141210':'#fff',stroke:on?'#fff':'#141210','stroke-width':on?3:2},NS2),g);
         if(f==='B')el('rect',{x:q[0]-2.5*u,y:q[1]-2.5*u,width:5*u,height:5*u,fill:on?'#fff':'#141210'},g);
-        if(f==='V')el('path',{d:`M${q[0]-3*u} ${q[1]+2.5*u}L${q[0]} ${q[1]-3*u}L${q[0]+3*u} ${q[1]+2.5*u}Z`,fill:on?'#fff':'#141210'},g)})});
+        if(f==='V')el('path',{d:`M${q[0]-3*u} ${q[1]+2.5*u}L${q[0]} ${q[1]-3*u}L${q[0]+3*u} ${q[1]+2.5*u}Z`,fill:on?'#fff':'#141210'},g);
+        if(EXTRA.includes(f)){const t=el('text',{x:q[0],y:q[1]+3.5*u,'font-size':9*u,'font-weight':700,'text-anchor':'middle',fill:on?'#fff':'#141210','font-family':'Inter,system-ui,sans-serif'},g);t.textContent=f}})});
     // puntos de fuga: dentro de la vista, un círculo con su letra; fuera, una flecha en el borde
-    for(const f of ['A','B','V']){const P=R[f];if(!P)continue;
+    for(const f of ['A','B','V',...(s.extra||[])]){const P=R[f];if(!P)continue;
       const dentro=P[0]>vb[0]&&P[0]<vb[2]&&P[1]>vb[1]&&P[1]<vb[3];
       if(dentro){el('circle',{cx:P[0],cy:P[1],r:13*u,fill:'#fff',stroke:'#141210','stroke-width':2.5*u},svg);texto(P[0],P[1]+4.5*u,f,{anchor:'middle',tam:13})}
       else{const c=[(vb[0]+vb[2])/2,(vb[1]+vb[3])/2],sg=GEOM.recortar(c,P,[vb[0]+24*u,vb[1]+24*u,vb[2]-24*u,vb[3]-24*u]);if(!sg)continue;const q=sg[1],d=GEOM.norm(GEOM.sub(P,c));
@@ -100,6 +113,8 @@ ETAPAS.encaje={pintar(cont){
     if(s.herramienta==='personas'){if(!R.h){anunciar('Primero coloca las rectas para tener el horizonte.');return}
       if(GEOM.ladoHorizonte(pt,R.h)<=0){anunciar('Las personas tienen que estar de pie en el suelo, por debajo del horizonte.');return}
       s.personas.push([pt[0],pt[1]]);guardar();dibujar();anunciar('Persona colocada: sus pies donde has tocado y su cabeza cerca del horizonte.')}
+    else if(s.herramienta==='lapiz'){if(!lapiz0){lapiz0=pt;dibujar();anunciar('Primer extremo marcado. Toca el otro.')}
+      else{s.lapiz.push({a:lapiz0,b:pt});lapiz0=null;guardar();dibujar();anunciar(lapizTexto(s.lapiz[s.lapiz.length-1],s.lapiz.length-1).replace('×','mide ').replace(' · ',' veces la medida 1, '))}}
     else if(s.herramienta==='medir'){if(!R.h){anunciar('Primero coloca las rectas para tener el horizonte.');return}
       if(!medida0){medida0=pt;dibujar();anunciar('Pie marcado. Ahora toca la parte de arriba.')}
       else{s.medidas.push({base:medida0,cima:pt});medida0=null;guardar();dibujar();const m=s.medidas[s.medidas.length-1],a=GEOM.altura(m.base,m.cima,R.h,ojo(),R.V);anunciar(a?'Mide unos '+fmt(a,2)+' metros.':'No se puede medir ahí.')}}}
@@ -121,6 +136,7 @@ ETAPAS.encaje={pintar(cont){
     if(R.A)s1+=`<li><b>Punto A:</b>&nbsp;${donde(R.A,'x')}.</li>`;else s1+=`<li>Las rectas A salen paralelas: su punto de fuga está muy lejos.</li>`;
     if(s.modo>=2){if(R.B)s1+=`<li><b>Punto B:</b>&nbsp;${donde(R.B,'x')}.</li>`;else s1+=`<li>Las rectas B salen paralelas: su punto de fuga está muy lejos.</li>`}
     if(s.modo===3){if(R.V)s1+=`<li><b>Punto V (verticales):</b>&nbsp;${donde(R.V,'y')}.</li>`;else s1+=`<li>Las verticales salen paralelas: no hace falta tercer punto.</li>`}
+    for(const f of s.extra){s1+=R[f]?`<li><b>Punto ${f} (otra fachada):</b>&nbsp;${donde(R[f],'x')}.</li>`:`<li>La recta ${f} sale paralela al horizonte: esa fachada se ve de frente y no fuga.</li>`}
     t.innerHTML=s1+'</ul>';
     const c=$('#ej-cono');if(!c)return;
     if(s.modo===1||!R.cono){c.innerHTML='<p class="muted">El cono de visión se calcula con dos puntos de fuga de caras en ángulo recto (una esquina).</p>';return}
@@ -133,13 +149,17 @@ ETAPAS.encaje={pintar(cont){
     const c1=html(`<div class="caja"><h2 class="ch">Puntos de fuga</h2><div class="ops" role="group" aria-label="Tipo de perspectiva">
       <button data-modo="1" aria-pressed="${s.modo===1}">1 · De frente</button><button data-modo="2" aria-pressed="${s.modo===2}">2 · Esquina</button><button data-modo="3" aria-pressed="${s.modo===3}">3 · Mirando arriba</button></div>
       <p class="muted" style="margin-top:8px">${s.modo===1?'Una calle o una fachada vista de frente: las líneas que se alejan van a un solo punto.':s.modo===2?'Un edificio en esquina: cada fachada tiene su punto de fuga, A y B, los dos en el horizonte. Las verticales siguen verticales.':'Una torre vista desde abajo (o desde arriba): las verticales también fugan, hacia el punto V.'}</p>
-      <ul class="leyenda">${familias(s.modo).map(f=>`<li><svg width="46" height="14" aria-hidden="true"><line x1="2" y1="7" x2="44" y2="7" stroke="currentColor" stroke-width="3" stroke-dasharray="${TRAZO[f]}"/></svg><span><b>${f}</b> · ${f==='A'?(s.modo===1?'líneas que se alejan':'fachada de la izquierda'):f==='B'?'fachada de la derecha':'verticales'} (${f==='A'?'trazo continuo, puntos redondos':f==='B'?'trazo a rayas, puntos con un cuadrado':'trazo de puntos, puntos con un triángulo'})</span></li>`).join('')}</ul>
+      <ul class="leyenda">${todas(s).map(f=>`<li><svg width="46" height="14" aria-hidden="true"><line x1="2" y1="7" x2="44" y2="7" stroke="currentColor" stroke-width="3" stroke-dasharray="${TRAZO[f]}"/></svg><span><b>${f}</b> · ${f==='A'?(s.modo===1?'líneas que se alejan':'fachada de la izquierda'):f==='B'?'fachada de la derecha':f==='V'?'verticales':'otra fachada'} (${f==='A'?'trazo continuo, puntos redondos':f==='B'?'trazo a rayas, puntos con un cuadrado':f==='V'?'trazo de puntos, puntos con un triángulo':'trazo propio, puntos con su letra'})</span></li>`).join('')}</ul>
       <div class="ops" style="margin-top:8px">${familias(s.modo).map(f=>`<button data-mas="${f}">Otra recta ${f}</button>`).join('')}<button data-quitar="1">Quitar la última añadida</button></div>
-      <p class="muted" style="margin-top:8px">Con más de dos rectas por letra, el punto de fuga es el que mejor encaja con todas.</p></div>`);
+      <p class="muted" style="margin-top:8px">Con más de dos rectas por letra, el punto de fuga es el que mejor encaja con todas.</p>
+      <div class="ops" style="margin-top:8px">${s.extra.length<EXTRA.length?`<button data-fachada="1">Otra fachada (${EXTRA[s.extra.length]})</button>`:''}${s.extra.length?`<button data-sinfachada="1">Quitar la fachada ${s.extra[s.extra.length-1]}</button>`:''}</div>
+      <p class="muted" style="margin-top:8px">En las calles torcidas cada fachada tiene su punto de fuga, y todos están en el mismo horizonte (Brehm). Para otra fachada basta una recta en su alero o su zócalo: la app la prolonga hasta el horizonte.</p></div>`);
     c1.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
       if(b.dataset.modo){const m=+b.dataset.modo;if(m===s.modo)return;s.modo=m;const d=porDefecto(p,m);for(const f of ['A','B','V'])if(!s.lineas[f]||s.lineas[f].length<2||!familias(m).includes(f))s.lineas[f]=d[f];
         if(m===1)s.lineas.A=d.A;guardar();pintarPanel();dibujar();anunciar(b.textContent)}
       if(b.dataset.mas){const f=b.dataset.mas,l=s.lineas[f],a=l[l.length-1];l.push([[a[0][0],a[0][1]+p.h*0.08],[a[1][0],a[1][1]+p.h*0.08]]);s.ultima=(s.ultima||[]).concat(f);guardar();dibujar();anunciar('Recta '+f+(l.length)+' añadida.')}
+      if(b.dataset.fachada){const f=EXTRA[s.extra.length];if(!f)return;s.extra.push(f);s.lineas[f]=[[[p.w*.56,p.h*.64],[p.w*.8,p.h*.68]]];sel=f+':0:0';guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' añadida: mueve su recta hasta el alero o el zócalo de esa fachada.')}
+      if(b.dataset.sinfachada){const f=s.extra.pop();delete s.lineas[f];s.ultima=(s.ultima||[]).filter(x=>x!==f);guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' quitada.')}
       if(b.dataset.quitar){const f=(s.ultima||[]).pop();if(!f||s.lineas[f].length<=2){anunciar('Cada letra necesita al menos dos rectas.');return}s.lineas[f].pop();guardar();dibujar()}});
     const c2=html(`<div class="caja"><h2 class="ch">Pásalo a tu cuaderno</h2><div id="ej-cuaderno" aria-live="polite"></div></div>`);
     const c3=html(`<div class="caja"><h2 class="ch">Ver</h2><div class="ops" role="group" aria-label="Qué se ve sobre la foto">
@@ -148,15 +168,15 @@ ETAPAS.encaje={pintar(cont){
       <div id="ej-cono" style="margin-top:6px"></div></div>`);
     c3.addEventListener('click',ev=>{const b=ev.target.closest('[data-ver]');if(!b)return;s[b.dataset.ver]=!s[b.dataset.ver];b.setAttribute('aria-pressed',s[b.dataset.ver]);guardar();dibujar()});
     c3.querySelector('#ej-dens').oninput=ev=>{s.densidad=+ev.target.value;guardar();dibujar()};
-    const c4=html(`<div class="caja"><h2 class="ch">Personas y alturas</h2><div class="ops" role="group" aria-label="Qué hace un toque en la foto">
-      <button data-herr="rectas" aria-pressed="${s.herramienta==='rectas'}">✋ Mover rectas</button><button data-herr="personas" aria-pressed="${s.herramienta==='personas'}">🧍 Poner personas</button><button data-herr="medir" aria-pressed="${s.herramienta==='medir'}">📏 Medir alturas</button></div>
-      <p class="muted" style="margin-top:8px">${s.herramienta==='personas'?'Toca en el suelo donde está de pie una persona: la app la dibuja con 1,70 m. Si estabas de pie, su cabeza queda cerca del horizonte, esté cerca o lejos.':s.herramienta==='medir'?'Toca el pie de algo que esté en el suelo (una puerta, una farola) y después su parte de arriba. La altura sale de la del horizonte, que está a la altura de tus ojos.':'Arrastra los puntos de las rectas, o elige uno y usa las flechas.'}</p>
+    const c4=html(`<div class="caja"><h2 class="ch">Personas y medidas</h2><div class="ops" role="group" aria-label="Qué hace un toque en la foto">
+      <button data-herr="rectas" aria-pressed="${s.herramienta==='rectas'}">✋ Mover rectas</button><button data-herr="personas" aria-pressed="${s.herramienta==='personas'}">🧍 Poner personas</button><button data-herr="medir" aria-pressed="${s.herramienta==='medir'}">📏 Medir alturas</button><button data-herr="lapiz" aria-pressed="${s.herramienta==='lapiz'}">✏ Medir con el lápiz</button></div>
+      <p class="muted" style="margin-top:8px">${s.herramienta==='personas'?'Toca en el suelo donde está de pie una persona: la app la dibuja con 1,70 m. Si estabas de pie, su cabeza queda cerca del horizonte, esté cerca o lejos.':s.herramienta==='medir'?'Toca el pie de algo que esté en el suelo (una puerta, una farola) y después su parte de arriba. La altura sale de la del horizonte, que está a la altura de tus ojos.':s.herramienta==='lapiz'?'Como el lápiz con el pulgar (Brehm): toca los dos extremos de algo. La primera raya es la medida 1; las siguientes dicen cuántas veces la miden y qué ángulo forman con la horizontal (un alero, una cuesta).':'Arrastra los puntos de las rectas, o elige uno y usa las flechas.'}</p>
       <div class="fila"><label for="ej-ojo">Altura de tus ojos al hacer la foto (m)</label><input type="number" id="ej-ojo" min="0.3" max="60" step="0.01" value="${ojo()}" style="width:96px" inputmode="decimal"></div>
       <div class="ops"><button data-ojo="${PREF.ojo}">De pie</button><button data-ojo="1.15">Sentado</button><button data-borrar="1">Quitar personas y medidas</button></div></div>`);
     c4.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
-      if(b.dataset.herr){s.herramienta=b.dataset.herr;medida0=null;sel=null;guardar();pintarPanel();dibujar()}
+      if(b.dataset.herr){s.herramienta=b.dataset.herr;medida0=null;lapiz0=null;sel=null;guardar();pintarPanel();dibujar()}
       if(b.dataset.ojo){s.ojo=+b.dataset.ojo;c4.querySelector('#ej-ojo').value=s.ojo;guardar();dibujar()}
-      if(b.dataset.borrar){s.personas=[];s.medidas=[];medida0=null;guardar();dibujar();anunciar('Personas y medidas quitadas.')}});
+      if(b.dataset.borrar){s.personas=[];s.medidas=[];s.lapiz=[];medida0=null;lapiz0=null;guardar();dibujar();anunciar('Personas y medidas quitadas.')}});
     c4.querySelector('#ej-ojo').onchange=ev=>{const v=parseFloat(String(ev.target.value).replace(',','.'));if(v>0){s.ojo=v;guardar();dibujar()}};
     panel.append(c1,c2,c4,c3);
     if(s.herramienta==='rectas'){const pad=html('<div class="caja"></div>');padMover(pad,d=>{if(sel)mover(sel,null,d);else anunciar('Elige antes un punto tocándolo.')},'Mover el punto elegido:');panel.append(pad)}

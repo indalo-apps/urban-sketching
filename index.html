@@ -7,7 +7,7 @@
   Urban Sketching · Perspectiva, valores y color para dibujar la ciudad
   © 2026 Carlos Moreno Otto. Todos los derechos reservados.
 -->
-<meta name="app-version" content="1.0">
+<meta name="app-version" content="1.1">
 <meta name="theme-color" content="#9a4527" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -93,7 +93,8 @@ h2.ch{margin:0 0 8px;font-size:calc(12px * var(--esc));line-height:1.3}
 .tarjeta img.mini{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}
 .aviso-foto{background:var(--tipbg);color:var(--tipt);border-radius:12px;padding:10px 12px;margin:12px 0}
 /* Etapas */
-.etapas{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:4px 0 12px}
+.etapas{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:4px 0 12px}
+@media (max-width:640px){.etapas{grid-template-columns:repeat(3,minmax(0,1fr))}.etapas button{flex-direction:row;gap:6px}}
 .etapas button{flex-direction:column;gap:2px;padding:6px 4px;font-size:calc(13px * var(--esc))}
 .etapas button .n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700;border:1.5px solid currentColor}
 .etapas button[aria-selected="true"]{background:var(--accent);color:var(--accent-t);border-color:var(--accent);font-weight:600}
@@ -802,10 +803,11 @@ const ALMACEN=(function(){
   async function guardar(p){p.cambiado=Date.now();await listo;const c=JSON.parse(JSON.stringify(p));if(!db){memoria.proyectos.set(p.id,c);return}
     try{await tx('proyectos','readwrite',s=>s.put(c))}catch(e){}}
   async function guardarFoto(id,blob){await listo;if(!db){memoria.fotos.set(id,blob);return}try{await tx('fotos','readwrite',s=>s.put(blob,id))}catch(e){}}
-  async function borrar(id){await listo;if(!db){memoria.proyectos.delete(id);memoria.fotos.delete(id);return}
-    await tx('proyectos','readwrite',s=>s.delete(id));await tx('fotos','readwrite',s=>s.delete(id))}
+  async function borrarFoto(id){await listo;if(!db){memoria.fotos.delete(id);return}try{await tx('fotos','readwrite',s=>s.delete(id))}catch(e){}}
+  async function borrar(id){await listo;if(!db){memoria.proyectos.delete(id);memoria.fotos.delete(id);memoria.fotos.delete(id+'-apunte');return}
+    await tx('proyectos','readwrite',s=>s.delete(id));await tx('fotos','readwrite',s=>s.delete(id));await borrarFoto(id+'-apunte')}
   const persistente=async()=>{await listo;return !!db};
-  return {lista,leer,foto,guardar,guardarFoto,borrar,persistente}
+  return {lista,leer,foto,guardar,guardarFoto,borrarFoto,borrar,persistente}
 })();
 /* ===== Escenas 3D muy sencillas (cajas, calles, personas) proyectadas en perspectiva =====
    Sirven para los dibujos de «Aprender», la portada y la foto de ejemplo. Mundo: X a la derecha,
@@ -869,8 +871,8 @@ const pct=x=>Math.round(x*100)+' %';
 let vivoT=0;const anunciar=t=>{const v=$('#vivo');v.textContent='';clearTimeout(vivoT);vivoT=setTimeout(()=>v.textContent=t,60)};
 const US={p:null,img:null,url:null,id:null};// apunte abierto
 const ETAPAS={};// las rellenan encuadre.js, encaje.js, valores.js, paleta.js y resumen.js
-const ORDEN_ETAPAS=['encuadre','encaje','valores','color','resumen'];
-const NOMBRE_ETAPA={encuadre:'Encuadre',encaje:'Encaje',valores:'Valores',color:'Color',resumen:'Resumen'};
+const ORDEN_ETAPAS=['encuadre','encaje','valores','color','resumen','comparar'];
+const NOMBRE_ETAPA={encuadre:'Encuadre',encaje:'Encaje',valores:'Valores',color:'Color',resumen:'Resumen',comparar:'Comparar'};
 let guardarT=0;function guardar(){if(!US.p)return;clearTimeout(guardarT);guardarT=setTimeout(()=>ALMACEN.guardar(US.p),300)}
 const fecha=t=>new Date(t).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
 /* ---------- Apuntes ---------- */
@@ -1040,7 +1042,7 @@ function canvasRecorte(max){const [x0,y0,x1,y1]=rectEncuadre(),w=x1-x0,h=y1-y0,k
   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*k));c.height=Math.max(1,Math.round(h*k));
   c.getContext('2d').drawImage(US.img,x0,y0,w,h,0,0,c.width,c.height);return c}
 // Estilos de las tres familias de rectas: se distinguen por el trazo y la letra, no por el color
-const TRAZO={A:'',B:'10 6',V:'2 5'};
+const TRAZO={A:'',B:'10 6',V:'2 5',C:'16 5 3 5',D:'24 8',E:'3 3 12 3'};
 /* ===== Etapa 1 · Encuadre: qué parte vas a dibujar, en qué papel y dónde pones el horizonte =====
    Proporciones de cielo y suelo de Masao Yamada (A Beginner's Guide to Sketching Buildings & Landscapes, cap. 3). */
 (function(){
@@ -1117,6 +1119,10 @@ function porDefecto(p,modo){const w=p.w,h=p.h,P=(x,y)=>[x*w,y*h];
   const L={A:[[P(.46,.18),P(.12,.33)],[P(.46,.86),P(.12,.72)]],B:[[P(.54,.18),P(.88,.33)],[P(.54,.86),P(.88,.72)]],V:[]};// A: fachada izquierda (fuga a la izquierda); B: derecha
   if(modo===3)L.V=[[P(.3,.15),P(.32,.85)],[P(.7,.15),P(.68,.85)]];return L}
 function familias(modo){return modo===1?['A']:modo===2?['A','B']:['A','B','V']}
+// Otras fachadas (Brehm, «Multi-point perspective»): en calles irregulares cada fachada tiene su punto de fuga,
+// y si sus horizontales lo son de verdad, ese punto está en el mismo horizonte. Basta una recta: se corta con él.
+const EXTRA=['C','D','E'];
+const todas=s=>familias(s.modo).concat(s.extra||[]);
 // Cálculo de lo que sale de las rectas
 function calcular(p){
   const s=p.pers,L=s.lineas,r={};
@@ -1126,6 +1132,7 @@ function calcular(p){
   else if(r.A||r.B){const q=r.A||r.B;r.h=[q,[q[0]+100,q[1]]]}
   if(r.h){const g=GEOM.angulo(r.h[0],r.h[1]);r.inclin=g;if(r.h[0][0]>r.h[1][0])r.h=[r.h[1],r.h[0]]}
   if(s.modo>=2&&r.A&&r.B)r.cono=GEOM.cono(r.A,r.B,[p.w/2,p.h/2],60);
+  for(const f of (s.extra||[])){const ls=L[f]||[];r[f]=ls.length>=2?GEOM.puntoFuga(ls):(ls.length===1&&r.h?GEOM.corte(ls[0],r.h):null)}
   return r}
 // Dónde cae un punto respecto al dibujo encuadrado, en palabras (para pasarlo al cuaderno)
 function dondeEn(P,eje){const [x0,y0,x1,y1]=rectEncuadre(),W=x1-x0,H=y1-y0;
@@ -1133,15 +1140,19 @@ function dondeEn(P,eje){const [x0,y0,x1,y1]=rectEncuadre(),W=x1-x0,H=y1-y0;
   const r=(P[1]-y0)/H;if(r<0)return `a ${fmt(-r,1)} altos del dibujo por encima del borde`;if(r>1)return `a ${fmt(r-1,1)} altos del dibujo por debajo del borde`;return `dentro del dibujo, al ${Math.round((1-r)*100)} % desde abajo`}
 // Altura del horizonte en el centro del dibujo, de 0 (abajo) a 1 (arriba)
 function alturaHz(R){if(!R.h)return null;const [x0,y0,x1,y1]=rectEncuadre(),cx=(x0+x1)/2,d=GEOM.sub(R.h[1],R.h[0]),y=R.h[0][1]+d[1]/(d[0]||1e-9)*(cx-R.h[0][0]);return 1-(y-y0)/(y1-y0)}
-window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto};
+window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto,todas};
 ETAPAS.encaje={pintar(cont){
   const p=US.p,s=p.pers;if(!s.lineas)s.lineas=porDefecto(p,s.modo);if(s.ojo==null)s.ojo=PREF.ojo;
   const {svg,barra,panel}=crearZona(cont);
   svg.setAttribute('aria-label','Foto con las rectas de perspectiva. Cada recta tiene dos puntos que se arrastran hasta apoyarla en una arista del edificio.');
-  let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,R={};
+  let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,lapiz0=null,R={};if(!s.lapiz)s.lapiz=[];if(!s.extra)s.extra=[];
+  // Medir con el lápiz (Brehm, «Pencil sighting»): ángulo con la horizontal y tamaño respecto a la primera raya
+  function lapizTexto(m,i){const hz=R.h?GEOM.sub(R.h[1],R.h[0]):[1,0],d=GEOM.sub(m.b,m.a);let a=Math.abs((Math.atan2(d[1],d[0])-Math.atan2(hz[1],hz[0]))*180/Math.PI)%180;if(a>90)a=180-a;
+    const ang=a<2?'horizontal':a>88?'vertical':fmt(a,0)+'° con la horizontal';if(i===0)return 'Medida 1 · '+ang;
+    const r=GEOM.len(d)/GEOM.len(GEOM.sub(s.lapiz[0].b,s.lapiz[0].a));return '×'+fmt(r,r<10?1:0)+' · '+ang}
   const ojo=()=>s.ojo||PREF.ojo;
   function viewBox(){const W=p.w*vista.k,H=p.h*vista.k;svg.setAttribute('viewBox',`${vista.cx-W/2} ${vista.cy-H/2} ${W} ${H}`);return [vista.cx-W/2,vista.cy-H/2,vista.cx+W/2,vista.cy+H/2]}
-  function verFugas(){const pts=[[0,0],[p.w,p.h]];for(const k of ['A','B','V'])if(R[k])pts.push(R[k]);
+  function verFugas(){const pts=[[0,0],[p.w,p.h]];for(const k of ['A','B','V',...(s.extra||[])])if(R[k])pts.push(R[k]);
     const lim=3;let x0=Math.min(...pts.map(q=>q[0])),x1=Math.max(...pts.map(q=>q[0])),y0=Math.min(...pts.map(q=>q[1])),y1=Math.max(...pts.map(q=>q[1]));
     x0=Math.max(x0,-p.w*lim);x1=Math.min(x1,p.w*(1+lim));y0=Math.max(y0,-p.h*lim);y1=Math.min(y1,p.h*(1+lim));
     const k=Math.max((x1-x0)/p.w,(y1-y0)/p.h)*1.12;vista={cx:(x0+x1)/2,cy:(y0+y1)/2,k:Math.max(1,k)}}
@@ -1180,21 +1191,25 @@ ETAPAS.encaje={pintar(cont){
       const g=html(`<svg xmlns="${NS}">${ESCENA.siluetaSVG(b,t,'')}</svg>`).firstElementChild;g.setAttribute('fill','#141210');g.setAttribute('stroke','#fff');g.setAttribute('stroke-width',1.5*u);svg.append(g)}
     for(const m of s.medidas){linea(m.base,m.cima,{ancho:2.5});const a=R.h&&GEOM.altura(m.base,m.cima,R.h,ojo(),R.V);
       texto(m.cima[0]+8*u,(m.base[1]+m.cima[1])/2,a!=null&&a>0?fmt(a,a<10?2:1)+' m':'?')}
+    (s.lapiz||[]).forEach((m,i)=>{linea(m.a,m.b,{ancho:3,dash:'1 5'});for(const q of [m.a,m.b])el('rect',{x:q[0]-4*u,y:q[1]-4*u,width:8*u,height:8*u,fill:'#fff',stroke:'#141210','stroke-width':2*u},svg);
+      const t=lapizTexto(m,i);texto((m.a[0]+m.b[0])/2+8*u,(m.a[1]+m.b[1])/2-8*u,t,{tam:12})});
+    if(lapiz0){el('rect',{x:lapiz0[0]-5*u,y:lapiz0[1]-5*u,width:10*u,height:10*u,fill:'#141210',stroke:'#fff','stroke-width':2*u},svg);texto(lapiz0[0]+10*u,lapiz0[1],'Ahora toca el otro extremo')}
     if(medida0){el('circle',{cx:medida0[0],cy:medida0[1],r:6*u,fill:'#141210',stroke:'#fff','stroke-width':2*u},svg);texto(medida0[0]+10*u,medida0[1],'Ahora toca la parte de arriba')}
     // rectas de cada familia, con su prolongación hasta el punto de fuga
-    const fams=familias(s.modo),activa=s.herramienta==='rectas';
+    const fams=todas(s),activa=s.herramienta==='rectas';
     for(const f of fams)s.lineas[f].forEach((ln,i)=>{const P=R[f];
       if(P){const lejos=GEOM.dist(ln[0],P)>GEOM.dist(ln[1],P)?ln[0]:ln[1];linea(lejos,P,{dash:TRAZO[f]||'',ancho:1.3,op:.9})}
       linea(ln[0],ln[1],{dash:TRAZO[f],ancho:3.2});
-      const m=[(ln[0][0]+ln[1][0])/2,(ln[0][1]+ln[1][1])/2];texto(m[0]+6*u,m[1]-6*u,NOMBRE[f]+(i+1),{tam:estrecho?12:14});
+      const m=[(ln[0][0]+ln[1][0])/2,(ln[0][1]+ln[1][1])/2];texto(m[0]+6*u,m[1]-6*u,(NOMBRE[f]||f)+(i+1),{tam:estrecho?12:14});
       if(activa)ln.forEach((q,j)=>{const id=`${f}:${i}:${j}`,on=sel===id;
-        const g=el('g',{'data-asa':id,tabindex:0,role:'button','aria-label':`Recta ${NOMBRE[f]}${i+1}, punto ${j+1}`,style:'cursor:grab'},svg);
+        const g=el('g',{'data-asa':id,tabindex:0,role:'button','aria-label':`Recta ${NOMBRE[f]||f}${i+1}, punto ${j+1}`,style:'cursor:grab'},svg);
         el('circle',{cx:q[0],cy:q[1],r:22*u,fill:'transparent'},g);
         el('circle',Object.assign({cx:q[0],cy:q[1],r:(on?11:8)*u,fill:on?'#141210':'#fff',stroke:on?'#fff':'#141210','stroke-width':on?3:2},NS2),g);
         if(f==='B')el('rect',{x:q[0]-2.5*u,y:q[1]-2.5*u,width:5*u,height:5*u,fill:on?'#fff':'#141210'},g);
-        if(f==='V')el('path',{d:`M${q[0]-3*u} ${q[1]+2.5*u}L${q[0]} ${q[1]-3*u}L${q[0]+3*u} ${q[1]+2.5*u}Z`,fill:on?'#fff':'#141210'},g)})});
+        if(f==='V')el('path',{d:`M${q[0]-3*u} ${q[1]+2.5*u}L${q[0]} ${q[1]-3*u}L${q[0]+3*u} ${q[1]+2.5*u}Z`,fill:on?'#fff':'#141210'},g);
+        if(EXTRA.includes(f)){const t=el('text',{x:q[0],y:q[1]+3.5*u,'font-size':9*u,'font-weight':700,'text-anchor':'middle',fill:on?'#fff':'#141210','font-family':'Inter,system-ui,sans-serif'},g);t.textContent=f}})});
     // puntos de fuga: dentro de la vista, un círculo con su letra; fuera, una flecha en el borde
-    for(const f of ['A','B','V']){const P=R[f];if(!P)continue;
+    for(const f of ['A','B','V',...(s.extra||[])]){const P=R[f];if(!P)continue;
       const dentro=P[0]>vb[0]&&P[0]<vb[2]&&P[1]>vb[1]&&P[1]<vb[3];
       if(dentro){el('circle',{cx:P[0],cy:P[1],r:13*u,fill:'#fff',stroke:'#141210','stroke-width':2.5*u},svg);texto(P[0],P[1]+4.5*u,f,{anchor:'middle',tam:13})}
       else{const c=[(vb[0]+vb[2])/2,(vb[1]+vb[3])/2],sg=GEOM.recortar(c,P,[vb[0]+24*u,vb[1]+24*u,vb[2]-24*u,vb[3]-24*u]);if(!sg)continue;const q=sg[1],d=GEOM.norm(GEOM.sub(P,c));
@@ -1209,6 +1224,8 @@ ETAPAS.encaje={pintar(cont){
     if(s.herramienta==='personas'){if(!R.h){anunciar('Primero coloca las rectas para tener el horizonte.');return}
       if(GEOM.ladoHorizonte(pt,R.h)<=0){anunciar('Las personas tienen que estar de pie en el suelo, por debajo del horizonte.');return}
       s.personas.push([pt[0],pt[1]]);guardar();dibujar();anunciar('Persona colocada: sus pies donde has tocado y su cabeza cerca del horizonte.')}
+    else if(s.herramienta==='lapiz'){if(!lapiz0){lapiz0=pt;dibujar();anunciar('Primer extremo marcado. Toca el otro.')}
+      else{s.lapiz.push({a:lapiz0,b:pt});lapiz0=null;guardar();dibujar();anunciar(lapizTexto(s.lapiz[s.lapiz.length-1],s.lapiz.length-1).replace('×','mide ').replace(' · ',' veces la medida 1, '))}}
     else if(s.herramienta==='medir'){if(!R.h){anunciar('Primero coloca las rectas para tener el horizonte.');return}
       if(!medida0){medida0=pt;dibujar();anunciar('Pie marcado. Ahora toca la parte de arriba.')}
       else{s.medidas.push({base:medida0,cima:pt});medida0=null;guardar();dibujar();const m=s.medidas[s.medidas.length-1],a=GEOM.altura(m.base,m.cima,R.h,ojo(),R.V);anunciar(a?'Mide unos '+fmt(a,2)+' metros.':'No se puede medir ahí.')}}}
@@ -1230,6 +1247,7 @@ ETAPAS.encaje={pintar(cont){
     if(R.A)s1+=`<li><b>Punto A:</b>&nbsp;${donde(R.A,'x')}.</li>`;else s1+=`<li>Las rectas A salen paralelas: su punto de fuga está muy lejos.</li>`;
     if(s.modo>=2){if(R.B)s1+=`<li><b>Punto B:</b>&nbsp;${donde(R.B,'x')}.</li>`;else s1+=`<li>Las rectas B salen paralelas: su punto de fuga está muy lejos.</li>`}
     if(s.modo===3){if(R.V)s1+=`<li><b>Punto V (verticales):</b>&nbsp;${donde(R.V,'y')}.</li>`;else s1+=`<li>Las verticales salen paralelas: no hace falta tercer punto.</li>`}
+    for(const f of s.extra){s1+=R[f]?`<li><b>Punto ${f} (otra fachada):</b>&nbsp;${donde(R[f],'x')}.</li>`:`<li>La recta ${f} sale paralela al horizonte: esa fachada se ve de frente y no fuga.</li>`}
     t.innerHTML=s1+'</ul>';
     const c=$('#ej-cono');if(!c)return;
     if(s.modo===1||!R.cono){c.innerHTML='<p class="muted">El cono de visión se calcula con dos puntos de fuga de caras en ángulo recto (una esquina).</p>';return}
@@ -1242,13 +1260,17 @@ ETAPAS.encaje={pintar(cont){
     const c1=html(`<div class="caja"><h2 class="ch">Puntos de fuga</h2><div class="ops" role="group" aria-label="Tipo de perspectiva">
       <button data-modo="1" aria-pressed="${s.modo===1}">1 · De frente</button><button data-modo="2" aria-pressed="${s.modo===2}">2 · Esquina</button><button data-modo="3" aria-pressed="${s.modo===3}">3 · Mirando arriba</button></div>
       <p class="muted" style="margin-top:8px">${s.modo===1?'Una calle o una fachada vista de frente: las líneas que se alejan van a un solo punto.':s.modo===2?'Un edificio en esquina: cada fachada tiene su punto de fuga, A y B, los dos en el horizonte. Las verticales siguen verticales.':'Una torre vista desde abajo (o desde arriba): las verticales también fugan, hacia el punto V.'}</p>
-      <ul class="leyenda">${familias(s.modo).map(f=>`<li><svg width="46" height="14" aria-hidden="true"><line x1="2" y1="7" x2="44" y2="7" stroke="currentColor" stroke-width="3" stroke-dasharray="${TRAZO[f]}"/></svg><span><b>${f}</b> · ${f==='A'?(s.modo===1?'líneas que se alejan':'fachada de la izquierda'):f==='B'?'fachada de la derecha':'verticales'} (${f==='A'?'trazo continuo, puntos redondos':f==='B'?'trazo a rayas, puntos con un cuadrado':'trazo de puntos, puntos con un triángulo'})</span></li>`).join('')}</ul>
+      <ul class="leyenda">${todas(s).map(f=>`<li><svg width="46" height="14" aria-hidden="true"><line x1="2" y1="7" x2="44" y2="7" stroke="currentColor" stroke-width="3" stroke-dasharray="${TRAZO[f]}"/></svg><span><b>${f}</b> · ${f==='A'?(s.modo===1?'líneas que se alejan':'fachada de la izquierda'):f==='B'?'fachada de la derecha':f==='V'?'verticales':'otra fachada'} (${f==='A'?'trazo continuo, puntos redondos':f==='B'?'trazo a rayas, puntos con un cuadrado':f==='V'?'trazo de puntos, puntos con un triángulo':'trazo propio, puntos con su letra'})</span></li>`).join('')}</ul>
       <div class="ops" style="margin-top:8px">${familias(s.modo).map(f=>`<button data-mas="${f}">Otra recta ${f}</button>`).join('')}<button data-quitar="1">Quitar la última añadida</button></div>
-      <p class="muted" style="margin-top:8px">Con más de dos rectas por letra, el punto de fuga es el que mejor encaja con todas.</p></div>`);
+      <p class="muted" style="margin-top:8px">Con más de dos rectas por letra, el punto de fuga es el que mejor encaja con todas.</p>
+      <div class="ops" style="margin-top:8px">${s.extra.length<EXTRA.length?`<button data-fachada="1">Otra fachada (${EXTRA[s.extra.length]})</button>`:''}${s.extra.length?`<button data-sinfachada="1">Quitar la fachada ${s.extra[s.extra.length-1]}</button>`:''}</div>
+      <p class="muted" style="margin-top:8px">En las calles torcidas cada fachada tiene su punto de fuga, y todos están en el mismo horizonte (Brehm). Para otra fachada basta una recta en su alero o su zócalo: la app la prolonga hasta el horizonte.</p></div>`);
     c1.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
       if(b.dataset.modo){const m=+b.dataset.modo;if(m===s.modo)return;s.modo=m;const d=porDefecto(p,m);for(const f of ['A','B','V'])if(!s.lineas[f]||s.lineas[f].length<2||!familias(m).includes(f))s.lineas[f]=d[f];
         if(m===1)s.lineas.A=d.A;guardar();pintarPanel();dibujar();anunciar(b.textContent)}
       if(b.dataset.mas){const f=b.dataset.mas,l=s.lineas[f],a=l[l.length-1];l.push([[a[0][0],a[0][1]+p.h*0.08],[a[1][0],a[1][1]+p.h*0.08]]);s.ultima=(s.ultima||[]).concat(f);guardar();dibujar();anunciar('Recta '+f+(l.length)+' añadida.')}
+      if(b.dataset.fachada){const f=EXTRA[s.extra.length];if(!f)return;s.extra.push(f);s.lineas[f]=[[[p.w*.56,p.h*.64],[p.w*.8,p.h*.68]]];sel=f+':0:0';guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' añadida: mueve su recta hasta el alero o el zócalo de esa fachada.')}
+      if(b.dataset.sinfachada){const f=s.extra.pop();delete s.lineas[f];s.ultima=(s.ultima||[]).filter(x=>x!==f);guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' quitada.')}
       if(b.dataset.quitar){const f=(s.ultima||[]).pop();if(!f||s.lineas[f].length<=2){anunciar('Cada letra necesita al menos dos rectas.');return}s.lineas[f].pop();guardar();dibujar()}});
     const c2=html(`<div class="caja"><h2 class="ch">Pásalo a tu cuaderno</h2><div id="ej-cuaderno" aria-live="polite"></div></div>`);
     const c3=html(`<div class="caja"><h2 class="ch">Ver</h2><div class="ops" role="group" aria-label="Qué se ve sobre la foto">
@@ -1257,15 +1279,15 @@ ETAPAS.encaje={pintar(cont){
       <div id="ej-cono" style="margin-top:6px"></div></div>`);
     c3.addEventListener('click',ev=>{const b=ev.target.closest('[data-ver]');if(!b)return;s[b.dataset.ver]=!s[b.dataset.ver];b.setAttribute('aria-pressed',s[b.dataset.ver]);guardar();dibujar()});
     c3.querySelector('#ej-dens').oninput=ev=>{s.densidad=+ev.target.value;guardar();dibujar()};
-    const c4=html(`<div class="caja"><h2 class="ch">Personas y alturas</h2><div class="ops" role="group" aria-label="Qué hace un toque en la foto">
-      <button data-herr="rectas" aria-pressed="${s.herramienta==='rectas'}">✋ Mover rectas</button><button data-herr="personas" aria-pressed="${s.herramienta==='personas'}">🧍 Poner personas</button><button data-herr="medir" aria-pressed="${s.herramienta==='medir'}">📏 Medir alturas</button></div>
-      <p class="muted" style="margin-top:8px">${s.herramienta==='personas'?'Toca en el suelo donde está de pie una persona: la app la dibuja con 1,70 m. Si estabas de pie, su cabeza queda cerca del horizonte, esté cerca o lejos.':s.herramienta==='medir'?'Toca el pie de algo que esté en el suelo (una puerta, una farola) y después su parte de arriba. La altura sale de la del horizonte, que está a la altura de tus ojos.':'Arrastra los puntos de las rectas, o elige uno y usa las flechas.'}</p>
+    const c4=html(`<div class="caja"><h2 class="ch">Personas y medidas</h2><div class="ops" role="group" aria-label="Qué hace un toque en la foto">
+      <button data-herr="rectas" aria-pressed="${s.herramienta==='rectas'}">✋ Mover rectas</button><button data-herr="personas" aria-pressed="${s.herramienta==='personas'}">🧍 Poner personas</button><button data-herr="medir" aria-pressed="${s.herramienta==='medir'}">📏 Medir alturas</button><button data-herr="lapiz" aria-pressed="${s.herramienta==='lapiz'}">✏ Medir con el lápiz</button></div>
+      <p class="muted" style="margin-top:8px">${s.herramienta==='personas'?'Toca en el suelo donde está de pie una persona: la app la dibuja con 1,70 m. Si estabas de pie, su cabeza queda cerca del horizonte, esté cerca o lejos.':s.herramienta==='medir'?'Toca el pie de algo que esté en el suelo (una puerta, una farola) y después su parte de arriba. La altura sale de la del horizonte, que está a la altura de tus ojos.':s.herramienta==='lapiz'?'Como el lápiz con el pulgar (Brehm): toca los dos extremos de algo. La primera raya es la medida 1; las siguientes dicen cuántas veces la miden y qué ángulo forman con la horizontal (un alero, una cuesta).':'Arrastra los puntos de las rectas, o elige uno y usa las flechas.'}</p>
       <div class="fila"><label for="ej-ojo">Altura de tus ojos al hacer la foto (m)</label><input type="number" id="ej-ojo" min="0.3" max="60" step="0.01" value="${ojo()}" style="width:96px" inputmode="decimal"></div>
       <div class="ops"><button data-ojo="${PREF.ojo}">De pie</button><button data-ojo="1.15">Sentado</button><button data-borrar="1">Quitar personas y medidas</button></div></div>`);
     c4.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
-      if(b.dataset.herr){s.herramienta=b.dataset.herr;medida0=null;sel=null;guardar();pintarPanel();dibujar()}
+      if(b.dataset.herr){s.herramienta=b.dataset.herr;medida0=null;lapiz0=null;sel=null;guardar();pintarPanel();dibujar()}
       if(b.dataset.ojo){s.ojo=+b.dataset.ojo;c4.querySelector('#ej-ojo').value=s.ojo;guardar();dibujar()}
-      if(b.dataset.borrar){s.personas=[];s.medidas=[];medida0=null;guardar();dibujar();anunciar('Personas y medidas quitadas.')}});
+      if(b.dataset.borrar){s.personas=[];s.medidas=[];s.lapiz=[];medida0=null;lapiz0=null;guardar();dibujar();anunciar('Personas y medidas quitadas.')}});
     c4.querySelector('#ej-ojo').onchange=ev=>{const v=parseFloat(String(ev.target.value).replace(',','.'));if(v>0){s.ojo=v;guardar();dibujar()}};
     panel.append(c1,c2,c4,c3);
     if(s.herramienta==='rectas'){const pad=html('<div class="caja"></div>');padMover(pad,d=>{if(sel)mover(sel,null,d);else anunciar('Elige antes un punto tocándolo.')},'Mover el punto elegido:');panel.append(pad)}
@@ -1442,7 +1464,7 @@ async function tarjeta(mz){
   const lineas=[];// texto del cuaderno
   const a=ENCAJE.alturaHz(R);
   if(R.h)lineas.push('Horizonte: '+(a<0?'por debajo del dibujo':a>1?'por encima del dibujo':'al '+Math.round(a*100)+' % de la altura, desde abajo'));
-  if(R.A)lineas.push('Punto A: '+ENCAJE.dondeEn(R.A,'x'));if(R.B)lineas.push('Punto B: '+ENCAJE.dondeEn(R.B,'x'));if(R.V)lineas.push('Punto V: '+ENCAJE.dondeEn(R.V,'y'));
+  if(R.A)lineas.push('Punto A: '+ENCAJE.dondeEn(R.A,'x'));if(R.B)lineas.push('Punto B: '+ENCAJE.dondeEn(R.B,'x'));if(R.V)lineas.push('Punto V: '+ENCAJE.dondeEn(R.V,'y'));for(const f of (p.pers.extra||[]))if(R[f])lineas.push('Punto '+f+': '+ENCAJE.dondeEn(R[f],'x'));
   const v=p.val,D=VALORES.claridades(600,v.borroso),u=VALORES.cortes(v,D.L),T=VALORES.tonos(D.L,u);
   const plan=['Reserva los blancos ('+pct(T.cuenta[0])+')'];for(let k=1;k<v.n;k++)plan.push((k===1?'Aguada clara':k===v.n-1?'Oscuros':'Aguada media')+' ('+pct(T.cuenta.slice(k).reduce((s,b)=>s+b,0))+')');
   c.width=W;c.height=4000;
@@ -1457,7 +1479,7 @@ async function tarjeta(mz){
   x.save();x.beginPath();x.rect(M,y,colW,imgH);x.clip();x.translate(M-ex0*k,y-ey0*k);x.scale(k,k);x.lineWidth=2.4/k;x.strokeStyle='rgba(255,255,255,.9)';
   const lin=(a,b,d)=>{x.setLineDash(d.map(z=>z/k));x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=4.5/k;x.beginPath();x.moveTo(...a);x.lineTo(...b);x.stroke();x.strokeStyle='#141210';x.lineWidth=2/k;x.stroke()};
   if(R.h){const d=GEOM.norm(GEOM.sub(R.h[1],R.h[0]));lin(GEOM.add(R.h[0],GEOM.mul(d,-1e5)),GEOM.add(R.h[0],GEOM.mul(d,1e5)),[14,5])}
-  for(const f of ['A','B','V'])if(R[f])for(const ln of p.pers.lineas[f]||[]){const lejos=GEOM.dist(ln[0],R[f])>GEOM.dist(ln[1],R[f])?ln[0]:ln[1];lin(lejos,R[f],(TRAZO[f]||'').split(' ').filter(Boolean).map(Number))}
+  for(const f of ['A','B','V',...(p.pers.extra||[])])if(R[f])for(const ln of p.pers.lineas[f]||[]){const lejos=GEOM.dist(ln[0],R[f])>GEOM.dist(ln[1],R[f])?ln[0]:ln[1];lin(lejos,R[f],(TRAZO[f]||'').split(' ').filter(Boolean).map(Number))}
   x.restore();
   const ton=VALORES.TONOS[v.n].map(VALORES.Lg),tc=document.createElement('canvas');tc.width=D.w;tc.height=D.h;const tx=tc.getContext('2d'),id=tx.createImageData(D.w,D.h);
   for(let i=0,j=0;i<D.w*D.h;i++,j+=4){const g=ton[T.t[i]];id.data[j]=id.data[j+1]=id.data[j+2]=g;id.data[j+3]=255}tx.putImageData(id,0,0);
@@ -1498,6 +1520,71 @@ ETAPAS.resumen={pintar(cont){
       if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:p.nombre||'Urban Sketching'});msg('Compartida.')}else bajar()}catch(e){if(e&&e.name!=='AbortError')bajar()}};
   $('#re-texto').onclick=async()=>{if(!T)return;const t=`${p.nombre||'Apunte'} · Urban Sketching\n\nPásalo a tu cuaderno:\n${T.lineas.map(l=>'• '+l).join('\n')}\n\nPlan de aguadas:\n${T.plan.map((l,i)=>(i+1)+'. '+l).join('\n')}\n\nPaleta:\n${mz.map((g,i)=>`${i+1}. ${g.nombre} (${g.peso}): ${g.op?g.op.texto:''}`).join('\n')}\n\nColores y mezclas aproximados.`;
     try{await navigator.clipboard.writeText(t);msg('✓ Texto copiado.')}catch(e){msg('No se ha podido copiar.')}};
+}};
+})();
+/* ===== Etapa 6 · Comparar: tu apunte encima de la foto =====
+   Versión en el móvil del «sight sizing» de Matthew Brehm (Drawing Perspective, «Perspective basics»):
+   poner el dibujo junto al motivo, al mismo tamaño, para ver qué ángulos y proporciones se han ido. */
+(function(){
+ETAPAS.comparar={pintar(cont){
+  const p=US.p;if(!p.cmp)p.cmp={x:0,y:0,s:1,r:0,op:.55,modo:'encima',encaje:true,tiene:false};const c=p.cmp;
+  const {svg,barra,panel}=crearZona(cont);
+  const [x0,y0,x1,y1]=rectEncuadre(),W=x1-x0,H=y1-y0;
+  svg.setAttribute('viewBox',`${x0} ${y0} ${W} ${H}`);svg.setAttribute('aria-label','Foto encuadrada con tu apunte encima. Arrastra para mover el apunte.');
+  let urlA=null,imgA=null,soloFoto=false,R=ENCAJE.calcular(p);
+  async function cargarApunte(){const b=await ALMACEN.foto(p.id+'-apunte');if(!b){c.tiene=false;return}
+    if(urlA)URL.revokeObjectURL(urlA);urlA=URL.createObjectURL(b);imgA=new Image();imgA.src=urlA;try{await imgA.decode()}catch(e){}c.tiene=true}
+  // tamaño base: el apunte ocupa el ancho del encuadre
+  const base=()=>imgA?Math.min(W/imgA.naturalWidth,H/imgA.naturalHeight):1;
+  function dibujar(){const u=unidad(svg);svg.innerHTML='';
+    el('image',{href:US.url,x:0,y:0,width:p.w,height:p.h,preserveAspectRatio:'none'},svg);
+    if(imgA&&!soloFoto){const k=base()*c.s,w=imgA.naturalWidth*k,h=imgA.naturalHeight*k,cx=x0+W/2+c.x,cy=y0+H/2+c.y;
+      const g=el('g',{transform:`translate(${cx} ${cy}) rotate(${c.r})`},svg);
+      el('image',{href:urlA,x:-w/2,y:-h/2,width:w,height:h,preserveAspectRatio:'none',opacity:c.modo==='diferencia'?1:c.op,style:c.modo==='diferencia'?'mix-blend-mode:difference':''},g)}
+    if(c.encaje&&R.h){const L=(a,b,dash,w)=>{el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:'#fff','stroke-width':w+2.5,opacity:.7,'vector-effect':'non-scaling-stroke'},svg);el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:'#141210','stroke-width':w,'stroke-dasharray':dash,'vector-effect':'non-scaling-stroke'},svg)};
+      const d=GEOM.norm(GEOM.sub(R.h[1],R.h[0]));L(GEOM.add(R.h[0],GEOM.mul(d,-1e5)),GEOM.add(R.h[0],GEOM.mul(d,1e5)),'18 6',2.5);
+      for(const f of ENCAJE.todas(p.pers))if(R[f])for(const ln of p.pers.lineas[f]||[]){const lejos=GEOM.dist(ln[0],R[f])>GEOM.dist(ln[1],R[f])?ln[0]:ln[1];L(lejos,R[f],TRAZO[f]||'',1.6)}}
+    if(!imgA){const t=el('text',{x:x0+W/2,y:y0+H/2,'text-anchor':'middle','font-size':18*u,'font-weight':700,fill:'#fff',stroke:'#141210','stroke-width':4*u,'paint-order':'stroke','font-family':'Inter,system-ui,sans-serif'},svg);t.textContent='Haz una foto de tu apunte'}}
+  // mover el apunte arrastrando
+  let ini=null;
+  svg.addEventListener('pointerdown',e=>{if(!imgA)return;e.preventDefault();const q=puntoSVG(svg,e);ini={q,x:c.x,y:c.y,id:e.pointerId};try{svg.setPointerCapture(e.pointerId)}catch(_){}});
+  svg.addEventListener('pointermove',e=>{if(!ini||e.pointerId!==ini.id)return;const q=puntoSVG(svg,e);c.x=ini.x+q.x-ini.q.x;c.y=ini.y+q.y-ini.q.y;dibujar()});
+  const fin=()=>{if(ini){ini=null;guardar()}};svg.addEventListener('pointerup',fin);svg.addEventListener('pointercancel',fin);
+  // barra: ver solo la foto mientras se mantiene pulsado
+  barra.append(html(`<button id="cm-foto" aria-pressed="false">👁 Ver solo la foto</button>`),html(`<span class="muted" style="align-self:center">Mantén pulsado para comparar</span>`));
+  const bf=$('#cm-foto');bf.addEventListener('pointerdown',()=>{soloFoto=true;dibujar()});
+  const suelta=()=>{if(bf.getAttribute('aria-pressed')!=='true'){soloFoto=false;dibujar()}};bf.addEventListener('pointerup',suelta);bf.addEventListener('pointerleave',suelta);
+  bf.addEventListener('click',e=>{if(e.detail===0){const on=bf.getAttribute('aria-pressed')!=='true';bf.setAttribute('aria-pressed',on);soloFoto=on;dibujar()}});
+  bf.addEventListener('contextmenu',e=>e.preventDefault());
+  // elegir la foto del apunte
+  const entrada=html('<input type="file" accept="image/*" capture="environment" hidden>'),galeria=html('<input type="file" accept="image/*" hidden>');cont.append(entrada,galeria);
+  async function recibir(f){if(!f)return;try{const u=URL.createObjectURL(f),im=new Image();im.src=u;await im.decode();
+      const k=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight)),cv=document.createElement('canvas');cv.width=Math.round(im.naturalWidth*k);cv.height=Math.round(im.naturalHeight*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(u);
+      const b=await new Promise(ok=>cv.toBlob(ok,'image/jpeg',0.88));await ALMACEN.guardarFoto(p.id+'-apunte',b);Object.assign(c,{x:0,y:0,s:1,r:0});await cargarApunte();guardar();pintarPanel();dibujar();anunciar('Apunte colocado encima de la foto. Muévelo y ajusta el tamaño y el giro hasta que coincidan.')}
+    catch(e){anunciar('No se ha podido abrir esa foto.')}}
+  entrada.onchange=e=>{recibir(e.target.files[0]);e.target.value=''};galeria.onchange=e=>{recibir(e.target.files[0]);e.target.value=''};
+  function pintarPanel(){panel.innerHTML='';
+    const c1=html(`<div class="caja"><h2 class="ch">Tu apunte</h2><p>Haz una foto de tu dibujo, de frente y con buena luz. La app lo pone encima de la foto para que veas qué ángulos y proporciones se han ido.</p>
+      <div class="ops"><button class="prim" id="cm-camara">📷 Hacer foto del apunte</button><button id="cm-galeria">🖼 Elegir de la galería</button></div>${c.tiene?'<div class="ops" style="margin-top:8px"><button id="cm-quitar">🗑 Quitar el apunte</button></div>':''}</div>`);
+    c1.querySelector('#cm-camara').onclick=()=>entrada.click();c1.querySelector('#cm-galeria').onclick=()=>galeria.click();
+    const q=c1.querySelector('#cm-quitar');if(q)q.onclick=async()=>{if(q.dataset.ok!=='1'){q.dataset.ok='1';q.lastChild.nodeValue=' Toca otra vez para quitarlo';return}
+      await ALMACEN.borrarFoto(p.id+'-apunte');imgA=null;c.tiene=false;guardar();pintarPanel();dibujar();anunciar('Apunte quitado.')};
+    panel.append(c1);
+    if(c.tiene){const c2=html(`<div class="caja"><h2 class="ch">Ajustar</h2>
+      <div class="ops" role="group" aria-label="Cómo se ven juntos"><button data-modo="encima" aria-pressed="${c.modo==='encima'}">Transparente</button><button data-modo="diferencia" aria-pressed="${c.modo==='diferencia'}">Diferencia</button></div>
+      <p class="muted" style="margin-top:6px">${c.modo==='diferencia'?'Donde el apunte y la foto coinciden se oscurece; lo que no coincide se ve claro.':'Mueve la transparencia para ver más el apunte o más la foto.'}</p>
+      ${c.modo==='encima'?`<div class="fila"><label for="cm-op">Transparencia del apunte</label></div><input type="range" id="cm-op" min="0.1" max="0.95" step="0.05" value="${c.op}">`:''}
+      <div class="fila"><label for="cm-s">Tamaño</label></div><input type="range" id="cm-s" min="0.3" max="3" step="0.01" value="${c.s}">
+      <div class="fila"><label for="cm-r">Giro</label></div><input type="range" id="cm-r" min="-25" max="25" step="0.5" value="${c.r}">
+      <div class="ops"><button data-ver="1" aria-pressed="${!!c.encaje}">Ver el horizonte y las fugas</button><button id="cm-cero">↺ Volver al principio</button></div></div>`);
+      c2.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.modo){c.modo=b.dataset.modo;guardar();pintarPanel();dibujar()}
+        if(b.dataset.ver){c.encaje=!c.encaje;b.setAttribute('aria-pressed',c.encaje);guardar();dibujar()}if(b.id==='cm-cero'){Object.assign(c,{x:0,y:0,s:1,r:0});guardar();pintarPanel();dibujar()}});
+      const rg=(id,k)=>{const i=c2.querySelector(id);if(i)i.oninput=()=>{c[k]=+i.value;dibujar()};if(i)i.onchange=()=>guardar()};rg('#cm-op','op');rg('#cm-s','s');rg('#cm-r','r');
+      panel.append(c2);const pad=html('<div class="caja"></div>');padMover(pad,d=>{c.x+=d[0];c.y+=d[1];guardar();dibujar()},'Mover el apunte:');panel.append(pad)}
+    panel.append(html(`<p class="nota"><b>Truco de Brehm:</b> en la calle, levanta el cuaderno junto al motivo y acércalo o aléjalo hasta que tu dibujo y lo que ves tengan el mismo tamaño. Así se ven enseguida los ángulos y las alturas que no cuadran. Aquí es lo mismo, pero con la foto. No hace falta que coincida todo: un apunte no es una foto.</p>`));
+    panel.append(botonSiguiente('comparar'))}
+  cargarApunte().then(()=>{pintarPanel();dibujar()});
+  const ro=new ResizeObserver(()=>dibujar());ro.observe(svg);limpiar=()=>{ro.disconnect();if(urlA)URL.revokeObjectURL(urlA)};
 }};
 })();
 /* ===== Al natural: la cámara con tu horizonte en vivo (sensor de inclinación del móvil) =====
@@ -1593,32 +1680,32 @@ function svgEscena(cam,cajas,o){o=o||{};const W=cam.w,H=cam.h,hy=cam.horizonteY;
   if(o.despues)s+=o.despues;
   if(o.horizonte!==false&&hy>-50&&hy<H+50){s+=`<line x1="0" y1="${hy}" x2="${W}" y2="${hy}" stroke="#fff" stroke-width="4.5" opacity=".8"/><line x1="0" y1="${hy}" x2="${W}" y2="${hy}" stroke="${LAMINA.tinta}" stroke-width="2.2" stroke-dasharray="14 5"/>`;
     s+=etiqueta(8,hy-8,'HORIZONTE',16)}
-  if(o.letras!==false){const ks=Object.keys(fugas).sort((a,b)=>fugas[a][0]-fugas[b][0]);ks.forEach((k,i)=>{const P=fugas[k];if(P[0]>-20&&P[0]<W+20&&P[1]>-20&&P[1]<H+20)
-    s+=`<circle cx="${P[0]}" cy="${P[1]}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/><text x="${P[0]}" y="${P[1]+5}" text-anchor="middle" font-size="14" font-weight="700" fill="${LAMINA.tinta}">${ks.length>1?'AB'[i]||'':'F'}</text>`})}
+  if(o.letras!==false){const dentro=k=>{const P=fugas[k];return P[0]>-20&&P[0]<W+20&&P[1]>-20&&P[1]<H+20};const ks=Object.keys(fugas).filter(dentro).sort((a,b)=>fugas[a][0]-fugas[b][0]);ks.forEach((k,i)=>{const P=fugas[k];if(true)
+    s+=`<circle cx="${P[0]}" cy="${P[1]}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/><text x="${P[0]}" y="${P[1]+5}" text-anchor="middle" font-size="14" font-weight="700" fill="${LAMINA.tinta}">${ks.length>1?'ABCDEF'[i]||'':'F'}</text>`})}
   return s}
 function etiqueta(x,y,t,tam,anchor){return `<text x="${x}" y="${y}" font-size="${tam||17}" font-weight="700" fill="${LAMINA.tinta}" stroke="#fff" stroke-width="3.5" paint-order="stroke" text-anchor="${anchor||'start'}" font-family="Inter,system-ui,sans-serif">${t}</text>`}
 const m=v=>fmt(v,v<10?1:0)+' m';
 const LECCIONES=[
- {t:'La línea del horizonte',c:[['ojo','Altura de tus ojos',0.4,20,0.1,1.6,m]],
+ {id:'horizonte',t:'La línea del horizonte',c:[['ojo','Altura de tus ojos',0.4,20,0.1,1.6,m]],
   p:['La línea del horizonte es la línea imaginaria donde se juntarían el cielo y el suelo si nada los tapara. Siempre está a la altura de tus ojos: si te sientas, baja contigo; si subes a la muralla de la Alcazaba, sube contigo.',
    'Por eso, lo primero de un apunte es decidir dónde va el horizonte en el papel y fijarse en qué parte de la fachada queda a la altura de tus ojos: esa parte irá en la línea.',
    'Mueve la altura de los ojos. Con los ojos por encima de los tejados, los ves desde arriba; sentado en el suelo, el horizonte corta las puertas por abajo. En el dibujo la línea no se mueve: lo que cambia es lo que corta.'],
   f:'Bruno Mollière, «La línea del horizonte»; Joseph D’Amelio, cap. 5; Ernest Norling, paso 1.',
   d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:430,w:600,h:380,pitch:0});return svgEscena(cam,[ESCENA.caja({x:-6,z:16,w:6,d:6,h:9,giro:30,ventanas:true}),ESCENA.caja({x:5,z:24,w:7,d:7,h:6,giro:30,ventanas:true}),ESCENA.caja({x:-1,z:40,w:8,d:8,h:15,giro:30,ventanas:true})],{guias:false,letras:false,personas:[[1.5,10,1.7]]})}},
- {t:'Las paralelas se juntan',c:[['giro','Giro de la mirada',-40,40,1,22,v=>fmt(v,0)+'°']],
+ {id:'paralelas',t:'Las paralelas se juntan',c:[['giro','Giro de la mirada',-40,40,1,22,v=>fmt(v,0)+'°']],
   p:['Las líneas que en la realidad son paralelas, como el alero y el zócalo de una fachada, en el dibujo se van acercando a medida que se alejan hasta juntarse en un punto del horizonte: el punto de fuga.',
    'Cada grupo de paralelas tiene su propio punto de fuga. Las filas de ventanas de una misma fachada van también a ese punto. Mollière la llama su regla número 2 y Pastrana, «convergencia»: las líneas no se juntan de verdad, solo lo parece.',
    'Gira la mirada: cuando miras la fachada de frente, sus líneas se quedan horizontales y solo fugan las que se alejan de ti.'],
   f:'Bruno Mollière, regla n.º 2; Robert Pastrana, cap. 3 («las tres reglas»); Joseph D’Amelio, cap. 5.',
   d:v=>{const cam=ESCENA.camara({ojo:1.6,f:420,w:600,h:380,yaw:v.giro});return svgEscena(cam,[ESCENA.caja({x:0,z:18,w:16,d:5,h:10,giro:0,ventanas:true})])}},
- {t:'Lejos: más pequeño y más cerca del horizonte',c:[['dist','Distancia de la persona',3,60,1,12,m]],
+ {id:'lejos',t:'Lejos: más pequeño y más cerca del horizonte',c:[['dist','Distancia de la persona',3,60,1,12,m]],
   p:['Las cosas iguales se ven más pequeñas cuanto más lejos están. Es la disminución, la segunda regla de Pastrana.',
    'Y, como insiste Dong Ho Kim, cuanto más lejos está algo, más se acerca a la línea del horizonte: los pies de la gente lejana suben en el papel y la base de las farolas del fondo acaba casi pegada a la línea.',
    'Mueve a la persona por la calle y fíjate en sus pies.'],
   f:'Robert Pastrana, cap. 3; Dong Ho Kim, parte 2; Phil Metzger, cap. 3.',
   d:v=>{const cam=ESCENA.camara({ojo:1.6,f:430,w:600,h:380});const faro=[];for(let z=6;z<=90;z+=12){faro.push(ESCENA.caja({x:-3.2,z,w:0.15,d:0.15,h:4.5,color:'#6b6256'}),ESCENA.caja({x:3.2,z,w:0.15,d:0.15,h:4.5,color:'#6b6256'}))}
    return svgEscena(cam,faro,{guias:false,letras:false,personas:[[0.8,v.dist,1.7]],antes:`<polygon points="${ESCENA.pts([cam.ver([-2.5,0,2]),cam.ver([2.5,0,2]),cam.ver([2.5,0,400]),cam.ver([-2.5,0,400])])}" fill="#d6c9b2"/>`})}},
- {t:'Arriba bajan, abajo suben',c:[['ojo','Altura de tus ojos',0.5,14,0.1,4.5,m]],
+ {id:'arriba',t:'Arriba bajan, abajo suben',c:[['ojo','Altura de tus ojos',0.5,14,0.1,4.5,m]],
   p:['Bruno Mollière resume casi toda la perspectiva en una regla: desde la arista más cercana del edificio, las líneas horizontales bajan si están por encima de tu horizonte, suben si están por debajo y van planas si quedan justo a la altura de tus ojos. Según él, ahí está el 80 % de la perspectiva.',
    'Cuanto más lejos del horizonte está una línea, más inclinada sale: el alero de un edificio alto baja mucho; un escalón cerca del suelo sube mucho.',
    'Antes de trazar una horizontal, pregúntate si está por encima o por debajo de tus ojos.'],
@@ -1629,20 +1716,26 @@ const LECCIONES=[
      for(const j of [(cerca+1)%4,(cerca+3)%4]){const C=k.esquinas.b[j],q=cam.ver([C[0],y,C[2]]);if(q)s+=`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${LAMINA.tinta}" stroke-width="${t==='plana'?3.5:2.2}"/>`}
      s+=etiqueta(p[0]+10,p[1]+(t==='sube'?20:-8),t,20)}
    return svgEscena(cam,[k],{despues:s})}},
- {t:'Un punto de fuga: la calle de frente',c:[['x','Dónde te pones en la calle',-5,5,0.1,0,v=>v===0?'en el centro':fmt(Math.abs(v),1)+' m a la '+(v<0?'izquierda':'derecha')],['ojo','Altura de tus ojos',0.5,10,0.1,1.6,m]],
+ {id:'unpunto',t:'Un punto de fuga: la calle de frente',c:[['x','Dónde te pones en la calle',-5,5,0.1,0,v=>v===0?'en el centro':fmt(Math.abs(v),1)+' m a la '+(v<0?'izquierda':'derecha')],['ojo','Altura de tus ojos',0.5,10,0.1,1.6,m]],
   p:['Cuando miras una calle de frente, las fachadas de los lados, los bordillos y los aleros van todos a un solo punto de fuga, en el horizonte, justo enfrente de ti.',
    'Las líneas de lo que ves de frente siguen horizontales y las verticales, verticales. Es la perspectiva más sencilla y la mejor para empezar.',
    'Si te mueves a un lado de la calle, el punto de fuga se mueve contigo: siempre está enfrente de tus ojos.'],
   f:'Ernest Norling, pasos 3 y 4; Jorge Paricio, cap. 1; Bruno Mollière.',
   d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:380,w:600,h:380,cx:v.x});const c=[];for(let i=0;i<5;i++){c.push(ESCENA.caja({x:-9,z:10+i*11,w:8,d:10,h:7+((i*5)%7),ventanas:true}),ESCENA.caja({x:9,z:12+i*11,w:8,d:10,h:8+((i*3)%6),ventanas:true}))}
    return svgEscena(cam,c,{letras:true})}},
- {t:'Dos puntos de fuga: la esquina',c:[['giro','Giro del edificio',8,82,1,40,v=>fmt(v,0)+'°']],
+ {id:'dospuntos',t:'Dos puntos de fuga: la esquina',c:[['giro','Giro del edificio',8,82,1,40,v=>fmt(v,0)+'°']],
   p:['Ante una esquina ves dos fachadas, y cada una tiene su punto de fuga: los dos en el horizonte, uno a la izquierda (A) y otro a la derecha (B). Las verticales siguen verticales.',
    'Gira el edificio. Cuando una fachada se pone casi de frente, su punto de fuga se va muy lejos, fuera del papel, y el de la otra fachada se acerca.',
    'En la calle, busca primero la arista más cercana: desde ella salen las dos fachadas, cada una hacia su punto.'],
   f:'Ernest Norling, pasos 5 a 7; Sarah Haley, cap. 4; Robert Pastrana, cap. 5.',
   d:v=>{const cam=ESCENA.camara({ojo:1.6,f:330,w:600,h:380});return svgEscena(cam,[ESCENA.caja({x:0,z:17,w:9,d:9,h:11,giro:v.giro,ventanas:true})],{personas:[[-3,10,1.7]]})}},
- {t:'No juntes los puntos de fuga',c:[['f','Distancia del ojo al papel',110,900,10,330,v=>v<220?'muy cerca':v<420?'normal':'lejos']],
+ {id:'muchos',t:'Muchos puntos de fuga',c:[['giro','Giro de la casa del centro',5,85,1,30,v=>fmt(v,0)+'°']],
+  p:['En las calles de verdad, sobre todo en los cascos antiguos, las casas no están alineadas en una cuadrícula: cada fachada mira hacia un lado y tiene su propio punto de fuga. Matthew Brehm llega a contar seis en una sola calle.',
+   'La buena noticia: si las fachadas son verticales y sus aleros horizontales, todos esos puntos están en la misma línea, el horizonte. Basta con encontrarlo una vez.',
+   'Gira la casa del centro y mira cómo sus puntos de fuga se mueven por el horizonte sin salirse de él. En la etapa Encaje, «Otra fachada» añade una letra más: con una sola recta, la app la prolonga hasta el horizonte y te da su punto.'],
+  f:'Matthew Brehm, «Multi-point perspective»; Bruno Mollière, regla n.º 2.',
+  d:v=>{const cam=ESCENA.camara({ojo:1.6,f:300,w:600,h:380});return svgEscena(cam,[ESCENA.caja({x:-13,z:30,w:8,d:8,h:9,giro:12,ventanas:true}),ESCENA.caja({x:0,z:24,w:8,d:8,h:11,giro:v.giro,ventanas:true}),ESCENA.caja({x:13,z:32,w:8,d:8,h:8,giro:72,ventanas:true})],{personas:[[-2,12,1.7]]})}},
+ {id:'nojuntes',t:'No juntes los puntos de fuga',c:[['f','Distancia del ojo al papel',110,900,10,330,v=>v<220?'muy cerca':v<420?'normal':'lejos']],
   p:['Si en tu cuaderno colocas los dos puntos de fuga muy juntos, el edificio sale deformado, como estirado hacia ti. Es el error más corriente al empezar, y Ernest Norling le dedica un paso entero.',
    'Vemos con nitidez dentro de un cono de unos 60°. Lo que queda fuera se deforma, como en los bordes de las fotos del móvil, que usan gran angular. Pastrana, D’Amelio y Haley lo explican con el «cono de visión»: el círculo del dibujo.',
    'Una regla práctica: la esquina más cercana, abajo, no debería formar un ángulo más cerrado que recto (90°). Si sale más cerrado, separa los puntos, aunque se salgan del papel.'],
@@ -1651,13 +1744,33 @@ const LECCIONES=[
    const r=v.f*Math.tan(Math.PI/6);const B=k.esquinas.b.map(b=>[b,cam.prof(b)]).sort((a,b)=>a[1]-b[1]);const c0=cam.ver(B[0][0]),c1=cam.ver(B[1][0]),c2=cam.ver(B[2][0]);
    let ang=null;if(c0&&c1&&c2){const a=GEOM.sub(c1,c0),b=GEOM.sub(c2,c0);ang=Math.acos(GEOM.dot(a,b)/(GEOM.len(a)*GEOM.len(b)))*180/Math.PI}
    return svgEscena(cam,[k],{despues:`<circle cx="300" cy="190" r="${r}" fill="none" stroke="${LAMINA.tinta}" stroke-width="2" stroke-dasharray="3 3 12 3"/>`+etiqueta(300,Math.max(20,190-r-8),'cono de 60°',16,'middle')+(ang?etiqueta(c0[0],Math.min(372,c0[1]+26),'esquina: '+fmt(ang,0)+'°'+(ang<90?' (deformada)':''),19,'middle'):'')})}},
- {t:'Personas a escala',c:[['ojo','Altura de tus ojos',1,1.9,0.05,1.6,m]],
+ {id:'curvilinea',t:'Perspectiva curvilínea',c:[['ancho','Anchura de la vista',60,170,5,140,v=>fmt(v,0)+'°'],['tipo','Cómo se dibuja',0,1,1,1,v=>v?'curvilínea':'lineal']],
+  p:['Las perspectivas de uno, dos y tres puntos funcionan bien dentro del cono de visión de unos 60°. Si quieres meter en el dibujo lo que ves por el rabillo del ojo, las líneas rectas tienen que curvarse: es la perspectiva curvilínea.',
+   'Brehm la usa para calles vistas de frente: los aleros de la acera de enfrente se curvan y bajan hacia un punto de fuga a la izquierda y otro a la derecha, los dos en el horizonte, que es la única línea que sigue recta.',
+   'Compara con la perspectiva lineal a la misma anchura: los extremos se estiran muchísimo. Es lo que hacen el gran angular y las fotos panorámicas del móvil.'],
+  f:'Matthew Brehm, «Curvilinear perspective»; Dong Ho Kim, parte 4 (gran angular y ojo de pez).',
+  d:v=>{const W=600,H=380,hy=190,ojo=1.6,Zf=10,ang=v.ancho*Math.PI/180,cur=v.tipo===1;
+   const f=cur?(W/2)/(ang/2):(W/2)/Math.tan(Math.min(ang/2,1.48));
+   const P=(X,Y,Z)=>{if(cur){const th=Math.atan2(X,Z),r=Math.hypot(X,Z);return [W/2+f*th,hy-f*(Y-ojo)/r]}return Z>0.05?[W/2+f*X/Z,hy-f*(Y-ojo)/Z]:null};
+   const linea=(a,b,n,extra)=>{let d='';for(let i=0;i<=n;i++){const t=i/n,q=P(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t);if(!q)continue;d+=(d?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)}return `<path d="${d}" fill="none" stroke="${LAMINA.tinta}" ${extra||'stroke-width="2"'}/>`};
+   const X0=-70,X1=70,alto=10.5;let s=`<rect width="600" height="380" fill="${LAMINA.cielo}"/><rect y="${hy}" width="600" height="190" fill="${LAMINA.suelo}"/>`;
+   // fachada de enfrente rellena
+   let d='';for(let i=0;i<=80;i++){const q=P(X0+(X1-X0)*i/80,alto,Zf);if(q)d+=(d?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)}for(let i=80;i>=0;i--){const q=P(X0+(X1-X0)*i/80,0,Zf);if(q)d+='L'+q[0].toFixed(1)+' '+q[1].toFixed(1)}
+   s+=`<path d="${d}Z" fill="${LAMINA.caras[1]}"/>`;
+   for(const y of [0,3.5,7,alto])s+=linea([X0,y,Zf],[X1,y,Zf],120,`stroke-width="${y===0||y===alto?2.4:1.3}"`);
+   for(let x=-68;x<=68;x+=8)s+=linea([x,0,Zf],[x,alto,Zf],2);
+   for(let x=-66;x<=66;x+=4)for(const y of [1,4.5,8]){const q=[[x,y,Zf],[x+1.4,y,Zf],[x+1.4,y+1.7,Zf],[x,y+1.7,Zf]].map(a=>P(...a));if(q.every(Boolean))s+=`<polygon points="${ESCENA.pts(q)}" fill="${LAMINA.tinta}" fill-opacity=".55"/>`}
+   s+=linea([X0,0,2.5],[X1,0,2.5],120,'stroke-width="2" stroke-dasharray="8 6"');
+   s+=`<line x1="0" y1="${hy}" x2="600" y2="${hy}" stroke="#fff" stroke-width="4.5" opacity=".8"/><line x1="0" y1="${hy}" x2="600" y2="${hy}" stroke="${LAMINA.tinta}" stroke-width="2.2" stroke-dasharray="14 5"/>`+etiqueta(8,hy-8,'HORIZONTE',16);
+   if(cur){for(const sg of [-1,1]){const x=W/2+sg*f*Math.PI/2;if(x>-10&&x<W+10)s+=`<circle cx="${x}" cy="${hy}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`}}
+   return s+etiqueta(300,30,cur?'los aleros se curvan; el horizonte, recto':'los extremos se estiran',17,'middle')}},
+ {id:'personas',t:'Personas a escala',c:[['ojo','Altura de tus ojos',1,1.9,0.05,1.6,m]],
   p:['En suelo llano, si estás de pie, las cabezas de la gente que también está de pie quedan más o menos en tu horizonte, estén cerca o lejos. Lo que cambia es dónde ponen los pies.',
    'Si te sientas, el horizonte baja y las cabezas quedan por encima. Alguien más alto que tú asoma un poco por encima de la línea; un niño queda por debajo.',
    'Con el mismo truco se miden alturas: el horizonte corta todo lo vertical a la altura de tus ojos. Si una puerta mide dos veces lo que hay del suelo al horizonte, mide el doble que tus ojos. En la etapa Encaje, «Medir alturas» lo hace por ti.'],
   f:'Ernest Norling, paso 9; Robert Pastrana, cap. 8; Joseph D’Amelio, cap. 10.',
   d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:430,w:600,h:380});return svgEscena(cam,[ESCENA.caja({x:-9,z:30,w:8,d:30,h:9,ventanas:true}),ESCENA.caja({x:10,z:34,w:8,d:30,h:11,ventanas:true})],{personas:[[-1.5,5,1.72],[1.6,9,1.65],[-0.5,16,1.75],[2.5,28,1.7],[-2,45,1.68],[0.4,70,1.72],[3,7,1.1]]})}},
- {t:'Tres puntos de fuga: mirar hacia arriba',c:[['pitch','Inclinación de la mirada',-30,45,1,22,v=>v===0?'de frente':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
+ {id:'trespuntos',t:'Tres puntos de fuga: mirar hacia arriba',c:[['pitch','Inclinación de la mirada',-30,45,1,22,v=>v===0?'de frente':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
   p:['Si levantas la mirada para ver una torre, sus verticales dejan de ser paralelas en el dibujo y se juntan en un tercer punto de fuga, muy arriba. Si miras hacia abajo desde un mirador, se juntan por debajo.',
    'Mirando hacia arriba, el horizonte baja en el papel; mirando hacia abajo, sube, aunque siga a la altura de tus ojos.',
    'En urban sketching muchas veces basta con inclinar un poco las verticales para que se note que miras hacia arriba.'],
@@ -1667,7 +1780,7 @@ const LECCIONES=[
    if(V){const P=V.delante?V.p:cam.dir([0,-1,0]).p;for(const b of k.esquinas.b){const q=cam.ver(b);if(q&&Math.abs(P[1])<4000)s+=`<line x1="${q[0]}" y1="${q[1]}" x2="${P[0]}" y2="${P[1]}" stroke="${LAMINA.guia}" stroke-width="1" stroke-dasharray="2 4" opacity=".8"/>`}
      if(P[1]>-20&&P[1]<400)s+=`<circle cx="${P[0]}" cy="${P[1]}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`+etiqueta(P[0],P[1]+4.5,'V',13,'middle')}
    return svgEscena(cam,[k],{despues:s})}},
- {t:'Calles en cuesta',c:[['pend','Pendiente de la calle',-18,18,1,10,v=>v===0?'llana':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
+ {id:'cuesta',t:'Calles en cuesta',c:[['pend','Pendiente de la calle',-18,18,1,10,v=>v===0?'llana':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
   p:['En una calle que sube, el suelo y las aceras van a un punto de fuga que está por encima del horizonte, justo encima del punto de fuga que tendría la calle llana. Si la calle baja, ese punto queda por debajo.',
    'Las casas no se inclinan: sus verticales siguen verticales y las líneas de sus ventanas y aleros van al horizonte. Por eso las fachadas se escalonan.',
    'Fíjate en las cuestas del barrio de la Alcazaba: las ventanas van al horizonte; la calle, más arriba.'],
@@ -1680,7 +1793,39 @@ const LECCIONES=[
      s+=`<line x1="${F.p[0]}" y1="${F.p[1]}" x2="${S.p[0]}" y2="${S.p[1]}" stroke="${LAMINA.tinta}" stroke-width="1" stroke-dasharray="2 3"/>`;
      if(S.p[1]>-10&&S.p[1]<390)s+=`<circle cx="${S.p[0]}" cy="${S.p[1]}" r="9" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`+etiqueta(S.p[0]+14,S.p[1]+5,'fuga de la cuesta',17)}
    return svgEscena(cam,c,{antes,despues:s,letras:false})}},
- {t:'Más lejos, más claro',c:[['aire','Aire entre tú y el fondo',0,1,0.05,0.6,v=>v<0.2?'muy limpio':v<0.6?'normal':'con bruma']],
+ {id:'lapiz',t:'Mirar con el lápiz',c:[['giro','Giro del edificio',10,80,1,35,v=>fmt(v,0)+'°']],
+  p:['Matthew Brehm propone dos trucos para comprobar el dibujo sin instrumentos. El primero es dibujar «a la medida»: sostén el cuaderno levantado junto al motivo y acércalo o aléjalo hasta que tu dibujo y lo que ves tengan el mismo tamaño. Así se ven enseguida los ángulos y las proporciones que se han ido.',
+   'El segundo, con el lápiz: cierra un ojo, estira el brazo siempre igual y pon el lápiz horizontal junto al alero para ver qué ángulo forma. O úsalo de regla, marcando con el pulgar, para comparar un tamaño con otro: esta ventana es tan alta como ancha; esa fachada, dos veces la otra.',
+   'En la etapa Encaje, «Medir con el lápiz» hace lo mismo sobre la foto, y la etapa Comparar pone tu apunte encima de la foto.'],
+  f:'Matthew Brehm, «Perspective basics»: sight sizing y pencil sighting; Stephanie Bower, «Proportions and measuring».',
+  d:v=>{const cam=ESCENA.camara({ojo:1.6,f:330,w:600,h:380}),k=ESCENA.caja({x:0,z:30,w:9,d:9,h:9,giro:v.giro,ventanas:true});
+   const B=k.esquinas.t.map((b,i)=>[i,cam.prof(b)]).sort((a,b)=>a[1]-b[1]),T=cam.ver(k.esquinas.t[B[0][0]]),vec=[(B[0][0]+1)%4,(B[0][0]+3)%4].map(j=>cam.ver(k.esquinas.t[j]));
+   let s=`<g transform="translate(${T[0]} ${T[1]-14})"><rect x="-170" y="-7" width="320" height="14" fill="#e9b949" stroke="${LAMINA.tinta}" stroke-width="1.5"/><polygon points="150,-7 178,0 150,7" fill="#f1d7a8" stroke="${LAMINA.tinta}" stroke-width="1.5"/><polygon points="170,-2 178,0 170,2" fill="${LAMINA.tinta}"/><rect x="-186" y="-7" width="16" height="14" fill="#c96f4a" stroke="${LAMINA.tinta}" stroke-width="1.5"/></g>`;
+   for(const q of vec){if(!q)continue;const a=Math.abs(Math.atan2(q[1]-T[1],q[0]-T[0])*180/Math.PI),ang=a>90?180-a:a,lado=q[0]<T[0]?-1:1;
+     s+=`<line x1="${T[0]}" y1="${T[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#9a4527" stroke-width="4"/>`+etiqueta(T[0]+lado*95,T[1]+34,fmt(ang,0)+'°',20,'middle')}
+   return svgEscena(cam,[k],{despues:s})}},
+ {id:'pasoapaso',t:'Un apunte paso a paso',c:[['paso','Paso',1,6,1,1,v=>['encuadre y horizonte','líneas principales','volúmenes','huecos','personas y detalles','valores'][v-1]]],
+  x:v=>['Mira primero la escena entera y decide el encuadre con marcas muy suaves. Traza la línea del horizonte, a la altura de tus ojos: ahí estarán los puntos de fuga, aunque se salgan del papel.',
+   'Con el lápiz, compara los ángulos de los aleros y los zócalos y traza las líneas principales hacia sus puntos de fuga. Siempre suaves: todavía se pueden mover.',
+   'Encaja los volúmenes: la arista más cercana, las alturas y los anchos. Comprueba las proporciones con el lápiz antes de seguir.',
+   'Cuando el conjunto está en su sitio, añade puertas, ventanas y balcones. Además ayudan a comprobar la perspectiva: sus filas van a los mismos puntos de fuga.',
+   'Personas y detalles, sin perderte en uno solo: Brehm aconseja ir dando vueltas por todo el dibujo en lugar de acabar una zona y pasar a la siguiente.',
+   'Por último, los valores: oscurece por capas, de arriba abajo, y comprueba de vez en cuando que los ángulos siguen bien.'][v.paso-1],
+  p:['Brehm termina cada capítulo con un «paso a paso» de un apunte real. Todos siguen el mismo orden: primero la estructura y la perspectiva, con líneas suaves, y después los detalles y los valores.',
+   'Mueve el paso: lo nuevo de cada paso sale en negro y más grueso; lo de los pasos anteriores, en gris.'],
+  f:'Matthew Brehm, «How-to sequence» de los capítulos de uno y dos puntos.',
+  d:v=>{const cam=ESCENA.camara({ojo:1.6,f:300,w:600,h:380}),k1=ESCENA.caja({x:-1,z:22,w:9,d:9,h:11,giro:38}),k2=ESCENA.caja({x:12,z:32,w:8,d:8,h:8,giro:38});
+   const A=cam.dir([Math.cos(38*Math.PI/180),0,-Math.sin(38*Math.PI/180)]).p,Bv=cam.dir([Math.sin(38*Math.PI/180),0,Math.cos(38*Math.PI/180)]).p,hy=cam.horizonteY;
+   const col=n=>n===v.paso?LAMINA.tinta:'#9b9389',an=n=>n===v.paso?2.6:1.3,vis=n=>v.paso>=n;
+   let s=`<rect width="600" height="380" fill="#fbf7ee"/>`;
+   if(vis(6)){for(const {f,pp} of ESCENA.proyectar(cam,[k1,k2]))if(f.tipo==='lado'||f.tipo==='techo')s+=`<polygon points="${ESCENA.pts(pp)}" fill="#8f8a84" fill-opacity="${f.tipo==='lado'?.45:.2}"/>`}
+   if(vis(1))s+=`<rect x="40" y="40" width="520" height="300" fill="none" stroke="${col(1)}" stroke-width="${an(1)}" stroke-dasharray="3 6"/><line x1="20" y1="${hy}" x2="580" y2="${hy}" stroke="${col(1)}" stroke-width="${an(1)+.6}"/>`;
+   if(vis(2)){const T=cam.ver(k1.esquinas.t[0]),Bo=cam.ver(k1.esquinas.b[0]);for(const q of [T,Bo])for(const P of [A,Bv])s+=`<line x1="${q[0]}" y1="${q[1]}" x2="${P[0]}" y2="${P[1]}" stroke="${col(2)}" stroke-width="${an(2)*.7}" stroke-dasharray="6 5"/>`;s+=`<line x1="${T[0]}" y1="${T[1]}" x2="${Bo[0]}" y2="${Bo[1]}" stroke="${col(2)}" stroke-width="${an(2)}"/>`}
+   if(vis(3))for(const {pp} of ESCENA.proyectar(cam,[k1,k2]))s+=`<polygon points="${ESCENA.pts(pp)}" fill="none" stroke="${col(3)}" stroke-width="${an(3)}" stroke-linejoin="round"/>`;
+   if(vis(4)){const kk=[ESCENA.caja({x:-1,z:22,w:9,d:9,h:11,giro:38,ventanas:true}),ESCENA.caja({x:12,z:32,w:8,d:8,h:8,giro:38,ventanas:true})];for(const {hs} of ESCENA.proyectar(cam,kk))for(const w of hs)s+=`<polygon points="${ESCENA.pts(w)}" fill="${vis(6)?LAMINA.tinta:'none'}" fill-opacity="${vis(6)?.6:0}" stroke="${col(4)}" stroke-width="${an(4)*.8}"/>`}
+   if(vis(5))for(const [x,z] of [[-4,10],[3,14],[6,26]])s+=ESCENA.persona(cam,x,z,1.7,'').replace('<g class="">',`<g fill="${col(5)}">`);
+   return s+etiqueta(12,28,'Paso '+v.paso+' de 6',17)}},
+ {id:'atmosfera',t:'Más lejos, más claro',c:[['aire','Aire entre tú y el fondo',0,1,0.05,0.6,v=>v<0.2?'muy limpio':v<0.6?'normal':'con bruma']],
   p:['El aire que hay entre tú y lo que miras aclara y apaga los colores: lo lejano se ve más claro, con menos contraste, menos detalle y algo más azulado. Phil Metzger lo llama perspectiva atmosférica y le dedica la primera parte de su libro.',
    'En la acuarela se aprovecha pintando el fondo con aguadas claras y frías, y guardando los oscuros, los bordes nítidos y los colores fuertes para lo que está cerca.',
    'En la etapa Valores lo verás en tus fotos: los montes del fondo caen casi siempre en el tono claro.'],
@@ -1689,7 +1834,7 @@ const LECCIONES=[
    capas.forEach(([lejos,hex,y],i)=>{const c=COLOR.hexRgb(hex),k=Math.min(1,lejos*v.aire*1.15),col=c.map((x,j)=>Math.round(x*(1-k)+cielo[j]*k));let d=`M0 380L0 ${y}`;for(let x=0;x<=600;x+=30)d+=`L${x} ${y-18*Math.sin(x/70+i*1.7)-10*Math.sin(x/23+i)}`;s+=`<path d="${d}L600 380Z" fill="rgb(${col})"/>`});
    const t=ESCENA.camara({ojo:1.6,f:400,w:600,h:380});s+=ESCENA.siluetaSVG([470,372],[470,300],'').replace('<g class="">','<g fill="#1d1a16">');
    return s+etiqueta(12,28,'lejos: claro y suave',18)+etiqueta(12,370,'cerca: oscuro y con contraste',18)}},
- {t:'Tres tonos y el plan de aguadas',c:[['paso','Capa',1,4,1,1,v=>['blancos','aguada clara','aguada media','oscuros'][v-1]]],
+ {id:'tonos',t:'Tres tonos y el plan de aguadas',c:[['paso','Capa',1,4,1,1,v=>['blancos','aguada clara','aguada media','oscuros'][v-1]]],
   p:['Antes de pintar conviene reducir lo que ves a tres manchas: claros, medios y oscuros. Entrecerrar los ojos ayuda, porque desaparecen los detalles y quedan las formas grandes.',
    'La acuarela es transparente: se pinta de claro a oscuro y los blancos son el propio papel. Por eso se planifica por capas, como explica Felix Scheinberger: primero se reservan los blancos; después, una aguada clara en todo lo demás; encima, ya seca, la media; y al final, los oscuros.',
    'Mueve la capa y mira cómo se construye el dibujo. La etapa Valores hace este plan con tus fotos.'],
@@ -1701,26 +1846,28 @@ const LECCIONES=[
    return s+etiqueta(12,24,['Paso 1: reserva los blancos','Paso 2: aguada clara en todo lo demás','Paso 3: aguada media, ya seca la anterior','Paso 4: los oscuros, al final'][k],18)}}
 ];
 // ---- Vistas ----
-const visto=()=>store.get('us-aprender-v1',[]);
+const VIEJAS=['horizonte','paralelas','lejos','arriba','unpunto','dospuntos','nojuntes','personas','trespuntos','cuesta','atmosfera','tonos'];
+const visto=()=>store.get('us-aprender-v1',[]).map(x=>typeof x==='number'?VIEJAS[x-1]:x).filter(Boolean);
 function VISTA_APRENDER(main){
   cabecera('aprender','Aprender perspectiva','Y un poco de valores para la acuarela');
   const v=visto(),ul=html('<ol class="lecciones"></ol>');
-  LECCIONES.forEach((l,i)=>ul.append(html(`<li><a href="#aprender/${i+1}" class="${v.includes(i+1)?'visto':''}"><span class="num" aria-hidden="true">${v.includes(i+1)?'✓':i+1}</span><span><b>${l.t}</b>${v.includes(i+1)?'<span class="sr"> (vista)</span>':''}</span></a></li>`)));
+  LECCIONES.forEach((l,i)=>{const ok=v.includes(l.id);ul.append(html(`<li><a href="#aprender/${i+1}" class="${ok?'visto':''}"><span class="num" aria-hidden="true">${ok?'✓':i+1}</span><span><b>${l.t}</b>${ok?'<span class="sr"> (vista)</span>':''}</span></a></li>`))});
   main.append(ul);
-  const sig=LECCIONES.findIndex((_,i)=>!v.includes(i+1));
+  const sig=LECCIONES.findIndex(l=>!v.includes(l.id));
   if(sig>=0)main.append(html(`<p style="margin-top:14px"><a class="boton prim" href="#aprender/${sig+1}">${v.length?'Sigue por aquí':'Empieza'}: ${LECCIONES[sig].t} →</a></p>`));
   main.append(html(`<p class="fuente">Los textos y los dibujos son propios, hechos a partir de los libros que se citan en cada lección (la lista completa está en Ajustes › Los libros).</p>`))}
 function VISTA_LECCION(main,n){
   const l=LECCIONES[n-1];if(!l){location.replace('#aprender');return}
   cabecera('leccion',l.t,`Lección ${n} de ${LECCIONES.length}`);
-  const v=visto();if(!v.includes(n)){v.push(n);store.set('us-aprender-v1',v)}
+  const v=visto();if(!v.includes(l.id)){v.push(l.id);store.set('us-aprender-v1',v)}
   const val={};l.c.forEach(c=>val[c[0]]=c[5]);
   const z=html(`<div class="cz"><div class="lienzo" style="background:#fbf7ee"><svg class="dib" viewBox="0 0 600 380" role="img" aria-label="${esc(l.t)}: dibujo que cambia con los controles"></svg></div><div class="panel"></div></div>`);main.append(z);
   const svg=z.querySelector('svg'),panel=z.querySelector('.panel');
-  const pintarDib=()=>{svg.innerHTML=l.d(val)};
+  let pintarDib=()=>{svg.innerHTML=l.d(val)};
   const caja=html('<div class="caja"></div>');
   l.c.forEach(([id,et,mi,ma,pa,ini,f])=>{const r=html(`<div><div class="fila"><label for="lc-${id}">${et}: <span class="dato" id="lc-${id}-v">${f(ini)}</span></label></div><input type="range" id="lc-${id}" min="${mi}" max="${ma}" step="${pa}" value="${ini}" aria-valuetext="${esc(f(ini))}"></div>`);
     const inp=r.querySelector('input');inp.oninput=()=>{val[id]=+inp.value;const t=f(val[id]);r.querySelector('.dato').textContent=t;inp.setAttribute('aria-valuetext',t);pintarDib()};caja.append(r)});
+  if(l.x){const px=html('<p class="nota" aria-live="polite" style="margin-top:8px"></p>');caja.append(px);const viejo=pintarDib;pintarDib=()=>{viejo();px.textContent=l.x(val)}}
   const texto=html(`<div class="leccion-texto">${l.p.map(p=>`<p>${p}</p>`).join('')}<p class="fuente">Fuentes: ${l.f}</p></div>`);
   panel.append(caja,texto);
   const nav=html(`<div class="navlec">${n>1?`<a class="boton" href="#aprender/${n-1}">‹ ${esc(LECCIONES[n-2].t)}</a>`:''}${n<LECCIONES.length?`<a class="boton prim" href="#aprender/${n+1}">Siguiente: ${esc(LECCIONES[n].t)} →</a>`:`<a class="boton prim" href="#natural">Siguiente: sal a dibujar con «Al natural» →</a>`}</div>`);
@@ -1732,6 +1879,7 @@ function VISTA_LECCION(main,n){
   const q=s=>document.querySelector(s);
   const VERSION=(q('meta[name="app-version"]')||{}).content||'dev';
   const NOVEDADES=[
+    ["1.1",["🏘 Encaje: «Otra fachada» para calles torcidas, con su punto de fuga en el mismo horizonte (Matthew Brehm). Basta una recta","✏ Encaje: «Medir con el lápiz», con el ángulo de cada línea con la horizontal y cuántas veces mide la primera","👁 Etapa nueva, Comparar: haz una foto de tu apunte y la app la pone encima de la foto, transparente o en «diferencia», con el horizonte y las fugas","📖 Cuatro lecciones nuevas: Muchos puntos de fuga, Perspectiva curvilínea, Mirar con el lápiz y Un apunte paso a paso"]],
     ["1.0",["📷 Nueva foto: encuadre, encaje, valores, color y resumen, en cinco etapas","📐 Encaje: puntos de fuga con 1, 2 o 3 puntos, horizonte, rejilla, cono de visión de 60° y cómo pasarlo a tu cuaderno","🧍 Personas a escala y medir alturas con la línea del horizonte","◐ Valores: la foto en 2 a 5 tonos y el plan de aguadas, capa a capa","🎨 Color: los colores de la foto con su nombre y con qué pinturas de tu carta salen (Van Gogh, Daniel Smith o Cotman), y la tabla de mezclas","🌅 Al natural: tu horizonte en vivo con la cámara","📖 Aprender: 12 lecciones con dibujos que se mueven","🖼 Tarjeta resumen en imagen para compartir"]],
   ];
   const verCmp=(a,b)=>{const x=String(a).split('.').map(Number),y=String(b).split('.').map(Number);for(let i=0;i<3;i++){const d=(x[i]||0)-(y[i]||0);if(d)return d}return 0};
@@ -1782,7 +1930,7 @@ function VISTA_LECCION(main,n){
     ['Bruno Mollière','La perspectiva en urban sketching. Trucos y técnicas para dibujantes','Gustavo Gili','2017'],
     ['Stephanie Bower','The Urban Sketching Handbook: Understanding Perspective','Quarry (Quarto)','2016'],
     ['Masao Yamada','A Beginner’s Guide to Sketching Buildings & Landscapes','Tuttle','2023'],
-    ['Matthew Brehm','Drawing Perspective: How to See It and How to Apply It','Barron’s','2016'],
+    ['Matthew Brehm','Drawing Perspective: How to See It and How to Apply It','Barron’s','2015'],
     ['Ernest R. Norling','Perspective Made Easy','Dover (1.ª ed. Macmillan, 1939)','1999'],
     ['Joseph D’Amelio','Perspective Drawing Handbook','Dover (1.ª ed. Tudor, 1964)','2004'],
     ['Robert Pastrana','Simplifying Perspective: A Step-by-Step Guide for Visual Artists','Focal Press','2015'],

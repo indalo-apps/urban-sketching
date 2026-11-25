@@ -18,32 +18,32 @@ function svgEscena(cam,cajas,o){o=o||{};const W=cam.w,H=cam.h,hy=cam.horizonteY;
   if(o.despues)s+=o.despues;
   if(o.horizonte!==false&&hy>-50&&hy<H+50){s+=`<line x1="0" y1="${hy}" x2="${W}" y2="${hy}" stroke="#fff" stroke-width="4.5" opacity=".8"/><line x1="0" y1="${hy}" x2="${W}" y2="${hy}" stroke="${LAMINA.tinta}" stroke-width="2.2" stroke-dasharray="14 5"/>`;
     s+=etiqueta(8,hy-8,'HORIZONTE',16)}
-  if(o.letras!==false){const ks=Object.keys(fugas).sort((a,b)=>fugas[a][0]-fugas[b][0]);ks.forEach((k,i)=>{const P=fugas[k];if(P[0]>-20&&P[0]<W+20&&P[1]>-20&&P[1]<H+20)
-    s+=`<circle cx="${P[0]}" cy="${P[1]}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/><text x="${P[0]}" y="${P[1]+5}" text-anchor="middle" font-size="14" font-weight="700" fill="${LAMINA.tinta}">${ks.length>1?'AB'[i]||'':'F'}</text>`})}
+  if(o.letras!==false){const dentro=k=>{const P=fugas[k];return P[0]>-20&&P[0]<W+20&&P[1]>-20&&P[1]<H+20};const ks=Object.keys(fugas).filter(dentro).sort((a,b)=>fugas[a][0]-fugas[b][0]);ks.forEach((k,i)=>{const P=fugas[k];if(true)
+    s+=`<circle cx="${P[0]}" cy="${P[1]}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/><text x="${P[0]}" y="${P[1]+5}" text-anchor="middle" font-size="14" font-weight="700" fill="${LAMINA.tinta}">${ks.length>1?'ABCDEF'[i]||'':'F'}</text>`})}
   return s}
 function etiqueta(x,y,t,tam,anchor){return `<text x="${x}" y="${y}" font-size="${tam||17}" font-weight="700" fill="${LAMINA.tinta}" stroke="#fff" stroke-width="3.5" paint-order="stroke" text-anchor="${anchor||'start'}" font-family="Inter,system-ui,sans-serif">${t}</text>`}
 const m=v=>fmt(v,v<10?1:0)+' m';
 const LECCIONES=[
- {t:'La línea del horizonte',c:[['ojo','Altura de tus ojos',0.4,20,0.1,1.6,m]],
+ {id:'horizonte',t:'La línea del horizonte',c:[['ojo','Altura de tus ojos',0.4,20,0.1,1.6,m]],
   p:['La línea del horizonte es la línea imaginaria donde se juntarían el cielo y el suelo si nada los tapara. Siempre está a la altura de tus ojos: si te sientas, baja contigo; si subes a la muralla de la Alcazaba, sube contigo.',
    'Por eso, lo primero de un apunte es decidir dónde va el horizonte en el papel y fijarse en qué parte de la fachada queda a la altura de tus ojos: esa parte irá en la línea.',
    'Mueve la altura de los ojos. Con los ojos por encima de los tejados, los ves desde arriba; sentado en el suelo, el horizonte corta las puertas por abajo. En el dibujo la línea no se mueve: lo que cambia es lo que corta.'],
   f:'Bruno Mollière, «La línea del horizonte»; Joseph D’Amelio, cap. 5; Ernest Norling, paso 1.',
   d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:430,w:600,h:380,pitch:0});return svgEscena(cam,[ESCENA.caja({x:-6,z:16,w:6,d:6,h:9,giro:30,ventanas:true}),ESCENA.caja({x:5,z:24,w:7,d:7,h:6,giro:30,ventanas:true}),ESCENA.caja({x:-1,z:40,w:8,d:8,h:15,giro:30,ventanas:true})],{guias:false,letras:false,personas:[[1.5,10,1.7]]})}},
- {t:'Las paralelas se juntan',c:[['giro','Giro de la mirada',-40,40,1,22,v=>fmt(v,0)+'°']],
+ {id:'paralelas',t:'Las paralelas se juntan',c:[['giro','Giro de la mirada',-40,40,1,22,v=>fmt(v,0)+'°']],
   p:['Las líneas que en la realidad son paralelas, como el alero y el zócalo de una fachada, en el dibujo se van acercando a medida que se alejan hasta juntarse en un punto del horizonte: el punto de fuga.',
    'Cada grupo de paralelas tiene su propio punto de fuga. Las filas de ventanas de una misma fachada van también a ese punto. Mollière la llama su regla número 2 y Pastrana, «convergencia»: las líneas no se juntan de verdad, solo lo parece.',
    'Gira la mirada: cuando miras la fachada de frente, sus líneas se quedan horizontales y solo fugan las que se alejan de ti.'],
   f:'Bruno Mollière, regla n.º 2; Robert Pastrana, cap. 3 («las tres reglas»); Joseph D’Amelio, cap. 5.',
   d:v=>{const cam=ESCENA.camara({ojo:1.6,f:420,w:600,h:380,yaw:v.giro});return svgEscena(cam,[ESCENA.caja({x:0,z:18,w:16,d:5,h:10,giro:0,ventanas:true})])}},
- {t:'Lejos: más pequeño y más cerca del horizonte',c:[['dist','Distancia de la persona',3,60,1,12,m]],
+ {id:'lejos',t:'Lejos: más pequeño y más cerca del horizonte',c:[['dist','Distancia de la persona',3,60,1,12,m]],
   p:['Las cosas iguales se ven más pequeñas cuanto más lejos están. Es la disminución, la segunda regla de Pastrana.',
    'Y, como insiste Dong Ho Kim, cuanto más lejos está algo, más se acerca a la línea del horizonte: los pies de la gente lejana suben en el papel y la base de las farolas del fondo acaba casi pegada a la línea.',
    'Mueve a la persona por la calle y fíjate en sus pies.'],
   f:'Robert Pastrana, cap. 3; Dong Ho Kim, parte 2; Phil Metzger, cap. 3.',
   d:v=>{const cam=ESCENA.camara({ojo:1.6,f:430,w:600,h:380});const faro=[];for(let z=6;z<=90;z+=12){faro.push(ESCENA.caja({x:-3.2,z,w:0.15,d:0.15,h:4.5,color:'#6b6256'}),ESCENA.caja({x:3.2,z,w:0.15,d:0.15,h:4.5,color:'#6b6256'}))}
    return svgEscena(cam,faro,{guias:false,letras:false,personas:[[0.8,v.dist,1.7]],antes:`<polygon points="${ESCENA.pts([cam.ver([-2.5,0,2]),cam.ver([2.5,0,2]),cam.ver([2.5,0,400]),cam.ver([-2.5,0,400])])}" fill="#d6c9b2"/>`})}},
- {t:'Arriba bajan, abajo suben',c:[['ojo','Altura de tus ojos',0.5,14,0.1,4.5,m]],
+ {id:'arriba',t:'Arriba bajan, abajo suben',c:[['ojo','Altura de tus ojos',0.5,14,0.1,4.5,m]],
   p:['Bruno Mollière resume casi toda la perspectiva en una regla: desde la arista más cercana del edificio, las líneas horizontales bajan si están por encima de tu horizonte, suben si están por debajo y van planas si quedan justo a la altura de tus ojos. Según él, ahí está el 80 % de la perspectiva.',
    'Cuanto más lejos del horizonte está una línea, más inclinada sale: el alero de un edificio alto baja mucho; un escalón cerca del suelo sube mucho.',
    'Antes de trazar una horizontal, pregúntate si está por encima o por debajo de tus ojos.'],
@@ -54,20 +54,26 @@ const LECCIONES=[
      for(const j of [(cerca+1)%4,(cerca+3)%4]){const C=k.esquinas.b[j],q=cam.ver([C[0],y,C[2]]);if(q)s+=`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${LAMINA.tinta}" stroke-width="${t==='plana'?3.5:2.2}"/>`}
      s+=etiqueta(p[0]+10,p[1]+(t==='sube'?20:-8),t,20)}
    return svgEscena(cam,[k],{despues:s})}},
- {t:'Un punto de fuga: la calle de frente',c:[['x','Dónde te pones en la calle',-5,5,0.1,0,v=>v===0?'en el centro':fmt(Math.abs(v),1)+' m a la '+(v<0?'izquierda':'derecha')],['ojo','Altura de tus ojos',0.5,10,0.1,1.6,m]],
+ {id:'unpunto',t:'Un punto de fuga: la calle de frente',c:[['x','Dónde te pones en la calle',-5,5,0.1,0,v=>v===0?'en el centro':fmt(Math.abs(v),1)+' m a la '+(v<0?'izquierda':'derecha')],['ojo','Altura de tus ojos',0.5,10,0.1,1.6,m]],
   p:['Cuando miras una calle de frente, las fachadas de los lados, los bordillos y los aleros van todos a un solo punto de fuga, en el horizonte, justo enfrente de ti.',
    'Las líneas de lo que ves de frente siguen horizontales y las verticales, verticales. Es la perspectiva más sencilla y la mejor para empezar.',
    'Si te mueves a un lado de la calle, el punto de fuga se mueve contigo: siempre está enfrente de tus ojos.'],
   f:'Ernest Norling, pasos 3 y 4; Jorge Paricio, cap. 1; Bruno Mollière.',
   d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:380,w:600,h:380,cx:v.x});const c=[];for(let i=0;i<5;i++){c.push(ESCENA.caja({x:-9,z:10+i*11,w:8,d:10,h:7+((i*5)%7),ventanas:true}),ESCENA.caja({x:9,z:12+i*11,w:8,d:10,h:8+((i*3)%6),ventanas:true}))}
    return svgEscena(cam,c,{letras:true})}},
- {t:'Dos puntos de fuga: la esquina',c:[['giro','Giro del edificio',8,82,1,40,v=>fmt(v,0)+'°']],
+ {id:'dospuntos',t:'Dos puntos de fuga: la esquina',c:[['giro','Giro del edificio',8,82,1,40,v=>fmt(v,0)+'°']],
   p:['Ante una esquina ves dos fachadas, y cada una tiene su punto de fuga: los dos en el horizonte, uno a la izquierda (A) y otro a la derecha (B). Las verticales siguen verticales.',
    'Gira el edificio. Cuando una fachada se pone casi de frente, su punto de fuga se va muy lejos, fuera del papel, y el de la otra fachada se acerca.',
    'En la calle, busca primero la arista más cercana: desde ella salen las dos fachadas, cada una hacia su punto.'],
   f:'Ernest Norling, pasos 5 a 7; Sarah Haley, cap. 4; Robert Pastrana, cap. 5.',
   d:v=>{const cam=ESCENA.camara({ojo:1.6,f:330,w:600,h:380});return svgEscena(cam,[ESCENA.caja({x:0,z:17,w:9,d:9,h:11,giro:v.giro,ventanas:true})],{personas:[[-3,10,1.7]]})}},
- {t:'No juntes los puntos de fuga',c:[['f','Distancia del ojo al papel',110,900,10,330,v=>v<220?'muy cerca':v<420?'normal':'lejos']],
+ {id:'muchos',t:'Muchos puntos de fuga',c:[['giro','Giro de la casa del centro',5,85,1,30,v=>fmt(v,0)+'°']],
+  p:['En las calles de verdad, sobre todo en los cascos antiguos, las casas no están alineadas en una cuadrícula: cada fachada mira hacia un lado y tiene su propio punto de fuga. Matthew Brehm llega a contar seis en una sola calle.',
+   'La buena noticia: si las fachadas son verticales y sus aleros horizontales, todos esos puntos están en la misma línea, el horizonte. Basta con encontrarlo una vez.',
+   'Gira la casa del centro y mira cómo sus puntos de fuga se mueven por el horizonte sin salirse de él. En la etapa Encaje, «Otra fachada» añade una letra más: con una sola recta, la app la prolonga hasta el horizonte y te da su punto.'],
+  f:'Matthew Brehm, «Multi-point perspective»; Bruno Mollière, regla n.º 2.',
+  d:v=>{const cam=ESCENA.camara({ojo:1.6,f:300,w:600,h:380});return svgEscena(cam,[ESCENA.caja({x:-13,z:30,w:8,d:8,h:9,giro:12,ventanas:true}),ESCENA.caja({x:0,z:24,w:8,d:8,h:11,giro:v.giro,ventanas:true}),ESCENA.caja({x:13,z:32,w:8,d:8,h:8,giro:72,ventanas:true})],{personas:[[-2,12,1.7]]})}},
+ {id:'nojuntes',t:'No juntes los puntos de fuga',c:[['f','Distancia del ojo al papel',110,900,10,330,v=>v<220?'muy cerca':v<420?'normal':'lejos']],
   p:['Si en tu cuaderno colocas los dos puntos de fuga muy juntos, el edificio sale deformado, como estirado hacia ti. Es el error más corriente al empezar, y Ernest Norling le dedica un paso entero.',
    'Vemos con nitidez dentro de un cono de unos 60°. Lo que queda fuera se deforma, como en los bordes de las fotos del móvil, que usan gran angular. Pastrana, D’Amelio y Haley lo explican con el «cono de visión»: el círculo del dibujo.',
    'Una regla práctica: la esquina más cercana, abajo, no debería formar un ángulo más cerrado que recto (90°). Si sale más cerrado, separa los puntos, aunque se salgan del papel.'],
@@ -76,13 +82,33 @@ const LECCIONES=[
    const r=v.f*Math.tan(Math.PI/6);const B=k.esquinas.b.map(b=>[b,cam.prof(b)]).sort((a,b)=>a[1]-b[1]);const c0=cam.ver(B[0][0]),c1=cam.ver(B[1][0]),c2=cam.ver(B[2][0]);
    let ang=null;if(c0&&c1&&c2){const a=GEOM.sub(c1,c0),b=GEOM.sub(c2,c0);ang=Math.acos(GEOM.dot(a,b)/(GEOM.len(a)*GEOM.len(b)))*180/Math.PI}
    return svgEscena(cam,[k],{despues:`<circle cx="300" cy="190" r="${r}" fill="none" stroke="${LAMINA.tinta}" stroke-width="2" stroke-dasharray="3 3 12 3"/>`+etiqueta(300,Math.max(20,190-r-8),'cono de 60°',16,'middle')+(ang?etiqueta(c0[0],Math.min(372,c0[1]+26),'esquina: '+fmt(ang,0)+'°'+(ang<90?' (deformada)':''),19,'middle'):'')})}},
- {t:'Personas a escala',c:[['ojo','Altura de tus ojos',1,1.9,0.05,1.6,m]],
+ {id:'curvilinea',t:'Perspectiva curvilínea',c:[['ancho','Anchura de la vista',60,170,5,140,v=>fmt(v,0)+'°'],['tipo','Cómo se dibuja',0,1,1,1,v=>v?'curvilínea':'lineal']],
+  p:['Las perspectivas de uno, dos y tres puntos funcionan bien dentro del cono de visión de unos 60°. Si quieres meter en el dibujo lo que ves por el rabillo del ojo, las líneas rectas tienen que curvarse: es la perspectiva curvilínea.',
+   'Brehm la usa para calles vistas de frente: los aleros de la acera de enfrente se curvan y bajan hacia un punto de fuga a la izquierda y otro a la derecha, los dos en el horizonte, que es la única línea que sigue recta.',
+   'Compara con la perspectiva lineal a la misma anchura: los extremos se estiran muchísimo. Es lo que hacen el gran angular y las fotos panorámicas del móvil.'],
+  f:'Matthew Brehm, «Curvilinear perspective»; Dong Ho Kim, parte 4 (gran angular y ojo de pez).',
+  d:v=>{const W=600,H=380,hy=190,ojo=1.6,Zf=10,ang=v.ancho*Math.PI/180,cur=v.tipo===1;
+   const f=cur?(W/2)/(ang/2):(W/2)/Math.tan(Math.min(ang/2,1.48));
+   const P=(X,Y,Z)=>{if(cur){const th=Math.atan2(X,Z),r=Math.hypot(X,Z);return [W/2+f*th,hy-f*(Y-ojo)/r]}return Z>0.05?[W/2+f*X/Z,hy-f*(Y-ojo)/Z]:null};
+   const linea=(a,b,n,extra)=>{let d='';for(let i=0;i<=n;i++){const t=i/n,q=P(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t);if(!q)continue;d+=(d?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)}return `<path d="${d}" fill="none" stroke="${LAMINA.tinta}" ${extra||'stroke-width="2"'}/>`};
+   const X0=-70,X1=70,alto=10.5;let s=`<rect width="600" height="380" fill="${LAMINA.cielo}"/><rect y="${hy}" width="600" height="190" fill="${LAMINA.suelo}"/>`;
+   // fachada de enfrente rellena
+   let d='';for(let i=0;i<=80;i++){const q=P(X0+(X1-X0)*i/80,alto,Zf);if(q)d+=(d?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)}for(let i=80;i>=0;i--){const q=P(X0+(X1-X0)*i/80,0,Zf);if(q)d+='L'+q[0].toFixed(1)+' '+q[1].toFixed(1)}
+   s+=`<path d="${d}Z" fill="${LAMINA.caras[1]}"/>`;
+   for(const y of [0,3.5,7,alto])s+=linea([X0,y,Zf],[X1,y,Zf],120,`stroke-width="${y===0||y===alto?2.4:1.3}"`);
+   for(let x=-68;x<=68;x+=8)s+=linea([x,0,Zf],[x,alto,Zf],2);
+   for(let x=-66;x<=66;x+=4)for(const y of [1,4.5,8]){const q=[[x,y,Zf],[x+1.4,y,Zf],[x+1.4,y+1.7,Zf],[x,y+1.7,Zf]].map(a=>P(...a));if(q.every(Boolean))s+=`<polygon points="${ESCENA.pts(q)}" fill="${LAMINA.tinta}" fill-opacity=".55"/>`}
+   s+=linea([X0,0,2.5],[X1,0,2.5],120,'stroke-width="2" stroke-dasharray="8 6"');
+   s+=`<line x1="0" y1="${hy}" x2="600" y2="${hy}" stroke="#fff" stroke-width="4.5" opacity=".8"/><line x1="0" y1="${hy}" x2="600" y2="${hy}" stroke="${LAMINA.tinta}" stroke-width="2.2" stroke-dasharray="14 5"/>`+etiqueta(8,hy-8,'HORIZONTE',16);
+   if(cur){for(const sg of [-1,1]){const x=W/2+sg*f*Math.PI/2;if(x>-10&&x<W+10)s+=`<circle cx="${x}" cy="${hy}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`}}
+   return s+etiqueta(300,30,cur?'los aleros se curvan; el horizonte, recto':'los extremos se estiran',17,'middle')}},
+ {id:'personas',t:'Personas a escala',c:[['ojo','Altura de tus ojos',1,1.9,0.05,1.6,m]],
   p:['En suelo llano, si estás de pie, las cabezas de la gente que también está de pie quedan más o menos en tu horizonte, estén cerca o lejos. Lo que cambia es dónde ponen los pies.',
    'Si te sientas, el horizonte baja y las cabezas quedan por encima. Alguien más alto que tú asoma un poco por encima de la línea; un niño queda por debajo.',
    'Con el mismo truco se miden alturas: el horizonte corta todo lo vertical a la altura de tus ojos. Si una puerta mide dos veces lo que hay del suelo al horizonte, mide el doble que tus ojos. En la etapa Encaje, «Medir alturas» lo hace por ti.'],
   f:'Ernest Norling, paso 9; Robert Pastrana, cap. 8; Joseph D’Amelio, cap. 10.',
   d:v=>{const cam=ESCENA.camara({ojo:v.ojo,f:430,w:600,h:380});return svgEscena(cam,[ESCENA.caja({x:-9,z:30,w:8,d:30,h:9,ventanas:true}),ESCENA.caja({x:10,z:34,w:8,d:30,h:11,ventanas:true})],{personas:[[-1.5,5,1.72],[1.6,9,1.65],[-0.5,16,1.75],[2.5,28,1.7],[-2,45,1.68],[0.4,70,1.72],[3,7,1.1]]})}},
- {t:'Tres puntos de fuga: mirar hacia arriba',c:[['pitch','Inclinación de la mirada',-30,45,1,22,v=>v===0?'de frente':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
+ {id:'trespuntos',t:'Tres puntos de fuga: mirar hacia arriba',c:[['pitch','Inclinación de la mirada',-30,45,1,22,v=>v===0?'de frente':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
   p:['Si levantas la mirada para ver una torre, sus verticales dejan de ser paralelas en el dibujo y se juntan en un tercer punto de fuga, muy arriba. Si miras hacia abajo desde un mirador, se juntan por debajo.',
    'Mirando hacia arriba, el horizonte baja en el papel; mirando hacia abajo, sube, aunque siga a la altura de tus ojos.',
    'En urban sketching muchas veces basta con inclinar un poco las verticales para que se note que miras hacia arriba.'],
@@ -92,7 +118,7 @@ const LECCIONES=[
    if(V){const P=V.delante?V.p:cam.dir([0,-1,0]).p;for(const b of k.esquinas.b){const q=cam.ver(b);if(q&&Math.abs(P[1])<4000)s+=`<line x1="${q[0]}" y1="${q[1]}" x2="${P[0]}" y2="${P[1]}" stroke="${LAMINA.guia}" stroke-width="1" stroke-dasharray="2 4" opacity=".8"/>`}
      if(P[1]>-20&&P[1]<400)s+=`<circle cx="${P[0]}" cy="${P[1]}" r="11" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`+etiqueta(P[0],P[1]+4.5,'V',13,'middle')}
    return svgEscena(cam,[k],{despues:s})}},
- {t:'Calles en cuesta',c:[['pend','Pendiente de la calle',-18,18,1,10,v=>v===0?'llana':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
+ {id:'cuesta',t:'Calles en cuesta',c:[['pend','Pendiente de la calle',-18,18,1,10,v=>v===0?'llana':fmt(Math.abs(v),0)+'° hacia '+(v>0?'arriba':'abajo')]],
   p:['En una calle que sube, el suelo y las aceras van a un punto de fuga que está por encima del horizonte, justo encima del punto de fuga que tendría la calle llana. Si la calle baja, ese punto queda por debajo.',
    'Las casas no se inclinan: sus verticales siguen verticales y las líneas de sus ventanas y aleros van al horizonte. Por eso las fachadas se escalonan.',
    'Fíjate en las cuestas del barrio de la Alcazaba: las ventanas van al horizonte; la calle, más arriba.'],
@@ -105,7 +131,39 @@ const LECCIONES=[
      s+=`<line x1="${F.p[0]}" y1="${F.p[1]}" x2="${S.p[0]}" y2="${S.p[1]}" stroke="${LAMINA.tinta}" stroke-width="1" stroke-dasharray="2 3"/>`;
      if(S.p[1]>-10&&S.p[1]<390)s+=`<circle cx="${S.p[0]}" cy="${S.p[1]}" r="9" fill="#fff" stroke="${LAMINA.tinta}" stroke-width="2"/>`+etiqueta(S.p[0]+14,S.p[1]+5,'fuga de la cuesta',17)}
    return svgEscena(cam,c,{antes,despues:s,letras:false})}},
- {t:'Más lejos, más claro',c:[['aire','Aire entre tú y el fondo',0,1,0.05,0.6,v=>v<0.2?'muy limpio':v<0.6?'normal':'con bruma']],
+ {id:'lapiz',t:'Mirar con el lápiz',c:[['giro','Giro del edificio',10,80,1,35,v=>fmt(v,0)+'°']],
+  p:['Matthew Brehm propone dos trucos para comprobar el dibujo sin instrumentos. El primero es dibujar «a la medida»: sostén el cuaderno levantado junto al motivo y acércalo o aléjalo hasta que tu dibujo y lo que ves tengan el mismo tamaño. Así se ven enseguida los ángulos y las proporciones que se han ido.',
+   'El segundo, con el lápiz: cierra un ojo, estira el brazo siempre igual y pon el lápiz horizontal junto al alero para ver qué ángulo forma. O úsalo de regla, marcando con el pulgar, para comparar un tamaño con otro: esta ventana es tan alta como ancha; esa fachada, dos veces la otra.',
+   'En la etapa Encaje, «Medir con el lápiz» hace lo mismo sobre la foto, y la etapa Comparar pone tu apunte encima de la foto.'],
+  f:'Matthew Brehm, «Perspective basics»: sight sizing y pencil sighting; Stephanie Bower, «Proportions and measuring».',
+  d:v=>{const cam=ESCENA.camara({ojo:1.6,f:330,w:600,h:380}),k=ESCENA.caja({x:0,z:30,w:9,d:9,h:9,giro:v.giro,ventanas:true});
+   const B=k.esquinas.t.map((b,i)=>[i,cam.prof(b)]).sort((a,b)=>a[1]-b[1]),T=cam.ver(k.esquinas.t[B[0][0]]),vec=[(B[0][0]+1)%4,(B[0][0]+3)%4].map(j=>cam.ver(k.esquinas.t[j]));
+   let s=`<g transform="translate(${T[0]} ${T[1]-14})"><rect x="-170" y="-7" width="320" height="14" fill="#e9b949" stroke="${LAMINA.tinta}" stroke-width="1.5"/><polygon points="150,-7 178,0 150,7" fill="#f1d7a8" stroke="${LAMINA.tinta}" stroke-width="1.5"/><polygon points="170,-2 178,0 170,2" fill="${LAMINA.tinta}"/><rect x="-186" y="-7" width="16" height="14" fill="#c96f4a" stroke="${LAMINA.tinta}" stroke-width="1.5"/></g>`;
+   for(const q of vec){if(!q)continue;const a=Math.abs(Math.atan2(q[1]-T[1],q[0]-T[0])*180/Math.PI),ang=a>90?180-a:a,lado=q[0]<T[0]?-1:1;
+     s+=`<line x1="${T[0]}" y1="${T[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#9a4527" stroke-width="4"/>`+etiqueta(T[0]+lado*95,T[1]+34,fmt(ang,0)+'°',20,'middle')}
+   return svgEscena(cam,[k],{despues:s})}},
+ {id:'pasoapaso',t:'Un apunte paso a paso',c:[['paso','Paso',1,6,1,1,v=>['encuadre y horizonte','líneas principales','volúmenes','huecos','personas y detalles','valores'][v-1]]],
+  x:v=>['Mira primero la escena entera y decide el encuadre con marcas muy suaves. Traza la línea del horizonte, a la altura de tus ojos: ahí estarán los puntos de fuga, aunque se salgan del papel.',
+   'Con el lápiz, compara los ángulos de los aleros y los zócalos y traza las líneas principales hacia sus puntos de fuga. Siempre suaves: todavía se pueden mover.',
+   'Encaja los volúmenes: la arista más cercana, las alturas y los anchos. Comprueba las proporciones con el lápiz antes de seguir.',
+   'Cuando el conjunto está en su sitio, añade puertas, ventanas y balcones. Además ayudan a comprobar la perspectiva: sus filas van a los mismos puntos de fuga.',
+   'Personas y detalles, sin perderte en uno solo: Brehm aconseja ir dando vueltas por todo el dibujo en lugar de acabar una zona y pasar a la siguiente.',
+   'Por último, los valores: oscurece por capas, de arriba abajo, y comprueba de vez en cuando que los ángulos siguen bien.'][v.paso-1],
+  p:['Brehm termina cada capítulo con un «paso a paso» de un apunte real. Todos siguen el mismo orden: primero la estructura y la perspectiva, con líneas suaves, y después los detalles y los valores.',
+   'Mueve el paso: lo nuevo de cada paso sale en negro y más grueso; lo de los pasos anteriores, en gris.'],
+  f:'Matthew Brehm, «How-to sequence» de los capítulos de uno y dos puntos.',
+  d:v=>{const cam=ESCENA.camara({ojo:1.6,f:300,w:600,h:380}),k1=ESCENA.caja({x:-1,z:22,w:9,d:9,h:11,giro:38}),k2=ESCENA.caja({x:12,z:32,w:8,d:8,h:8,giro:38});
+   const A=cam.dir([Math.cos(38*Math.PI/180),0,-Math.sin(38*Math.PI/180)]).p,Bv=cam.dir([Math.sin(38*Math.PI/180),0,Math.cos(38*Math.PI/180)]).p,hy=cam.horizonteY;
+   const col=n=>n===v.paso?LAMINA.tinta:'#9b9389',an=n=>n===v.paso?2.6:1.3,vis=n=>v.paso>=n;
+   let s=`<rect width="600" height="380" fill="#fbf7ee"/>`;
+   if(vis(6)){for(const {f,pp} of ESCENA.proyectar(cam,[k1,k2]))if(f.tipo==='lado'||f.tipo==='techo')s+=`<polygon points="${ESCENA.pts(pp)}" fill="#8f8a84" fill-opacity="${f.tipo==='lado'?.45:.2}"/>`}
+   if(vis(1))s+=`<rect x="40" y="40" width="520" height="300" fill="none" stroke="${col(1)}" stroke-width="${an(1)}" stroke-dasharray="3 6"/><line x1="20" y1="${hy}" x2="580" y2="${hy}" stroke="${col(1)}" stroke-width="${an(1)+.6}"/>`;
+   if(vis(2)){const T=cam.ver(k1.esquinas.t[0]),Bo=cam.ver(k1.esquinas.b[0]);for(const q of [T,Bo])for(const P of [A,Bv])s+=`<line x1="${q[0]}" y1="${q[1]}" x2="${P[0]}" y2="${P[1]}" stroke="${col(2)}" stroke-width="${an(2)*.7}" stroke-dasharray="6 5"/>`;s+=`<line x1="${T[0]}" y1="${T[1]}" x2="${Bo[0]}" y2="${Bo[1]}" stroke="${col(2)}" stroke-width="${an(2)}"/>`}
+   if(vis(3))for(const {pp} of ESCENA.proyectar(cam,[k1,k2]))s+=`<polygon points="${ESCENA.pts(pp)}" fill="none" stroke="${col(3)}" stroke-width="${an(3)}" stroke-linejoin="round"/>`;
+   if(vis(4)){const kk=[ESCENA.caja({x:-1,z:22,w:9,d:9,h:11,giro:38,ventanas:true}),ESCENA.caja({x:12,z:32,w:8,d:8,h:8,giro:38,ventanas:true})];for(const {hs} of ESCENA.proyectar(cam,kk))for(const w of hs)s+=`<polygon points="${ESCENA.pts(w)}" fill="${vis(6)?LAMINA.tinta:'none'}" fill-opacity="${vis(6)?.6:0}" stroke="${col(4)}" stroke-width="${an(4)*.8}"/>`}
+   if(vis(5))for(const [x,z] of [[-4,10],[3,14],[6,26]])s+=ESCENA.persona(cam,x,z,1.7,'').replace('<g class="">',`<g fill="${col(5)}">`);
+   return s+etiqueta(12,28,'Paso '+v.paso+' de 6',17)}},
+ {id:'atmosfera',t:'Más lejos, más claro',c:[['aire','Aire entre tú y el fondo',0,1,0.05,0.6,v=>v<0.2?'muy limpio':v<0.6?'normal':'con bruma']],
   p:['El aire que hay entre tú y lo que miras aclara y apaga los colores: lo lejano se ve más claro, con menos contraste, menos detalle y algo más azulado. Phil Metzger lo llama perspectiva atmosférica y le dedica la primera parte de su libro.',
    'En la acuarela se aprovecha pintando el fondo con aguadas claras y frías, y guardando los oscuros, los bordes nítidos y los colores fuertes para lo que está cerca.',
    'En la etapa Valores lo verás en tus fotos: los montes del fondo caen casi siempre en el tono claro.'],
@@ -114,7 +172,7 @@ const LECCIONES=[
    capas.forEach(([lejos,hex,y],i)=>{const c=COLOR.hexRgb(hex),k=Math.min(1,lejos*v.aire*1.15),col=c.map((x,j)=>Math.round(x*(1-k)+cielo[j]*k));let d=`M0 380L0 ${y}`;for(let x=0;x<=600;x+=30)d+=`L${x} ${y-18*Math.sin(x/70+i*1.7)-10*Math.sin(x/23+i)}`;s+=`<path d="${d}L600 380Z" fill="rgb(${col})"/>`});
    const t=ESCENA.camara({ojo:1.6,f:400,w:600,h:380});s+=ESCENA.siluetaSVG([470,372],[470,300],'').replace('<g class="">','<g fill="#1d1a16">');
    return s+etiqueta(12,28,'lejos: claro y suave',18)+etiqueta(12,370,'cerca: oscuro y con contraste',18)}},
- {t:'Tres tonos y el plan de aguadas',c:[['paso','Capa',1,4,1,1,v=>['blancos','aguada clara','aguada media','oscuros'][v-1]]],
+ {id:'tonos',t:'Tres tonos y el plan de aguadas',c:[['paso','Capa',1,4,1,1,v=>['blancos','aguada clara','aguada media','oscuros'][v-1]]],
   p:['Antes de pintar conviene reducir lo que ves a tres manchas: claros, medios y oscuros. Entrecerrar los ojos ayuda, porque desaparecen los detalles y quedan las formas grandes.',
    'La acuarela es transparente: se pinta de claro a oscuro y los blancos son el propio papel. Por eso se planifica por capas, como explica Felix Scheinberger: primero se reservan los blancos; después, una aguada clara en todo lo demás; encima, ya seca, la media; y al final, los oscuros.',
    'Mueve la capa y mira cómo se construye el dibujo. La etapa Valores hace este plan con tus fotos.'],
@@ -126,26 +184,28 @@ const LECCIONES=[
    return s+etiqueta(12,24,['Paso 1: reserva los blancos','Paso 2: aguada clara en todo lo demás','Paso 3: aguada media, ya seca la anterior','Paso 4: los oscuros, al final'][k],18)}}
 ];
 // ---- Vistas ----
-const visto=()=>store.get('us-aprender-v1',[]);
+const VIEJAS=['horizonte','paralelas','lejos','arriba','unpunto','dospuntos','nojuntes','personas','trespuntos','cuesta','atmosfera','tonos'];
+const visto=()=>store.get('us-aprender-v1',[]).map(x=>typeof x==='number'?VIEJAS[x-1]:x).filter(Boolean);
 function VISTA_APRENDER(main){
   cabecera('aprender','Aprender perspectiva','Y un poco de valores para la acuarela');
   const v=visto(),ul=html('<ol class="lecciones"></ol>');
-  LECCIONES.forEach((l,i)=>ul.append(html(`<li><a href="#aprender/${i+1}" class="${v.includes(i+1)?'visto':''}"><span class="num" aria-hidden="true">${v.includes(i+1)?'✓':i+1}</span><span><b>${l.t}</b>${v.includes(i+1)?'<span class="sr"> (vista)</span>':''}</span></a></li>`)));
+  LECCIONES.forEach((l,i)=>{const ok=v.includes(l.id);ul.append(html(`<li><a href="#aprender/${i+1}" class="${ok?'visto':''}"><span class="num" aria-hidden="true">${ok?'✓':i+1}</span><span><b>${l.t}</b>${ok?'<span class="sr"> (vista)</span>':''}</span></a></li>`))});
   main.append(ul);
-  const sig=LECCIONES.findIndex((_,i)=>!v.includes(i+1));
+  const sig=LECCIONES.findIndex(l=>!v.includes(l.id));
   if(sig>=0)main.append(html(`<p style="margin-top:14px"><a class="boton prim" href="#aprender/${sig+1}">${v.length?'Sigue por aquí':'Empieza'}: ${LECCIONES[sig].t} →</a></p>`));
   main.append(html(`<p class="fuente">Los textos y los dibujos son propios, hechos a partir de los libros que se citan en cada lección (la lista completa está en Ajustes › Los libros).</p>`))}
 function VISTA_LECCION(main,n){
   const l=LECCIONES[n-1];if(!l){location.replace('#aprender');return}
   cabecera('leccion',l.t,`Lección ${n} de ${LECCIONES.length}`);
-  const v=visto();if(!v.includes(n)){v.push(n);store.set('us-aprender-v1',v)}
+  const v=visto();if(!v.includes(l.id)){v.push(l.id);store.set('us-aprender-v1',v)}
   const val={};l.c.forEach(c=>val[c[0]]=c[5]);
   const z=html(`<div class="cz"><div class="lienzo" style="background:#fbf7ee"><svg class="dib" viewBox="0 0 600 380" role="img" aria-label="${esc(l.t)}: dibujo que cambia con los controles"></svg></div><div class="panel"></div></div>`);main.append(z);
   const svg=z.querySelector('svg'),panel=z.querySelector('.panel');
-  const pintarDib=()=>{svg.innerHTML=l.d(val)};
+  let pintarDib=()=>{svg.innerHTML=l.d(val)};
   const caja=html('<div class="caja"></div>');
   l.c.forEach(([id,et,mi,ma,pa,ini,f])=>{const r=html(`<div><div class="fila"><label for="lc-${id}">${et}: <span class="dato" id="lc-${id}-v">${f(ini)}</span></label></div><input type="range" id="lc-${id}" min="${mi}" max="${ma}" step="${pa}" value="${ini}" aria-valuetext="${esc(f(ini))}"></div>`);
     const inp=r.querySelector('input');inp.oninput=()=>{val[id]=+inp.value;const t=f(val[id]);r.querySelector('.dato').textContent=t;inp.setAttribute('aria-valuetext',t);pintarDib()};caja.append(r)});
+  if(l.x){const px=html('<p class="nota" aria-live="polite" style="margin-top:8px"></p>');caja.append(px);const viejo=pintarDib;pintarDib=()=>{viejo();px.textContent=l.x(val)}}
   const texto=html(`<div class="leccion-texto">${l.p.map(p=>`<p>${p}</p>`).join('')}<p class="fuente">Fuentes: ${l.f}</p></div>`);
   panel.append(caja,texto);
   const nav=html(`<div class="navlec">${n>1?`<a class="boton" href="#aprender/${n-1}">‹ ${esc(LECCIONES[n-2].t)}</a>`:''}${n<LECCIONES.length?`<a class="boton prim" href="#aprender/${n+1}">Siguiente: ${esc(LECCIONES[n].t)} →</a>`:`<a class="boton prim" href="#natural">Siguiente: sal a dibujar con «Al natural» →</a>`}</div>`);
