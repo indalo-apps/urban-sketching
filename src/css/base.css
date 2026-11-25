@@ -55,6 +55,7 @@ h2.ch{margin:0 0 8px;font-size:calc(12px * var(--esc));line-height:1.3}
 .tarjeta span.muted{display:block;margin-top:2px}
 .tarjeta.seguir{border-color:var(--accent);border-width:2px}
 .tarjeta img.mini{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}
+.aviso-guardado{border:2px solid currentColor}.aviso-guardado p{margin:0}
 .aviso-foto{background:var(--tipbg);color:var(--tipt);border-radius:12px;padding:10px 12px;margin:12px 0}
 /* Etapas */
 .etapas{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:4px 0 12px}

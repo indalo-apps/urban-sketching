@@ -102,6 +102,7 @@ function dibujoPortada(){
     for(const w of hs)s+=`<polygon points="${ESCENA.pts(w)}" fill="#24201b" fill-opacity=".55"/>`;i++}
   return s+'</svg>'}
 const ICONO=(n)=>window.icono?icono(n):'';
+const AVISO_FOTOS=`<b>⚠ Tus fotos y apuntes se guardan solo dentro de esta app, en este móvil.</b> No van a tu carrete de Fotos ni a iCloud, y no pasan a otro móvil ni al ordenador. Si borras la app (su icono de la pantalla de inicio) o los datos de Safari de este sitio, se pierden. Si quieres conservar una foto, hazla con la cámara del móvil y elígela luego desde la galería.`;
 async function vistaInicio(main){
   cabecera('inicio');
   main.append(html(`<div class="portada">${dibujoPortada()}<div class="portada-txt"><h1 class="portada-t">Urban Sketching</h1><p class="portada-s">Perspectiva, valores y color para dibujar la ciudad</p></div></div>`));
@@ -118,6 +119,8 @@ async function vistaInicio(main){
   t.append(html(`<button class="tarjeta" id="t-ejemplo"><span class="tic">${ICONO('imagen')}</span><span><b>Probar con un ejemplo</b><span class="muted">Una esquina inventada, para ver cómo funciona sin buscar una foto</span></span></button>`));
   const s=$('#t-seguir');if(s)s.onclick=()=>{location.hash='#foto/'+u.id+'/'+u.etapa};
   $('#t-foto').onclick=elegirFoto;$('#t-ejemplo').onclick=apunteEjemplo;
+  if(!store.get('us-aviso-fotos',false)){const a=html(`<div class="aviso-foto aviso-guardado" role="note"><p>${AVISO_FOTOS}</p><div class="ops" style="margin-top:8px"><button id="av-ok">Entendido</button><a class="boton" href="#mis">Ver mis apuntes</a></div></div>`);
+    t.before(a);a.querySelector('#av-ok').onclick=()=>{store.set('us-aviso-fotos',true);a.remove();anunciar('Aviso cerrado. Lo tienes siempre en Mis apuntes y en Ajustes.');$('#t-foto').focus()}}
   main.append(html(`<p class="aviso-foto"><b>Un consejo de Bruno Mollière:</b> la perspectiva se aprende mejor dibujando al natural que copiando fotos, porque el gran angular del móvil deforma los bordes. Usa las fotos para comprobar y planificar, y sal a la calle con «Al natural».</p>`))}
 /* ---------- Mis apuntes ---------- */
 async function vistaMis(main){
@@ -125,6 +128,7 @@ async function vistaMis(main){
   const lista=await ALMACEN.lista();
   const bar=html(`<div class="ops" style="margin-bottom:12px"><button class="prim" id="m-nueva">📷 Nueva foto</button><button id="m-ej">🖼 Ejemplo</button></div>`);main.append(bar);
   $('#m-nueva').onclick=elegirFoto;$('#m-ej').onclick=apunteEjemplo;
+  main.append(html(`<p class="aviso-foto aviso-guardado" role="note">${AVISO_FOTOS}</p>`));
   if(!(await ALMACEN.persistente()))main.append(html('<p class="nota">Este navegador no deja guardar datos: los apuntes se perderán al cerrar la app.</p>'));
   if(!lista.length){main.append(html('<p class="vacio">Todavía no hay apuntes. Empieza con una foto de un edificio o una calle.</p>'));return}
   const ul=html('<ul class="apuntes"></ul>');main.append(ul);
