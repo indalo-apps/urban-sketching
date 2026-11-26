@@ -64,21 +64,22 @@ const VISTA_SOL=(function(){
       o+=`<g stroke="currentColor" stroke-width="2" stroke-linecap="round">${ry}</g><circle cx="${sx}" cy="${sy}" r="7" fill="var(--card)" stroke="currentColor" stroke-width="2"/>`}
     return o}
   // El día entero: altura del sol hora a hora
-  function grafica(dia0,lat,lon,min,D){const W=600,H=190,y0=H-30,esc=(H-40)/90,X=m=>m/1440*W,Y=a=>y0-Math.max(-12,a)*esc;let d='';
+  function grafica(dia0,lat,lon,min,D){const W=600,H=220,y0=H-44,esc=(H-40)/90,X=m=>m/1440*W,Y=a=>y0-Math.max(-5,a)*esc;let d='';
     for(let m=0;m<=1440;m+=10){const a=SOL.posicion(new Date(dia0.getTime()+m*60000),lat,lon).alt;d+=(m?'L':'M')+X(m).toFixed(1)+' '+Y(a).toFixed(1)}
     let o=`<defs><pattern id="so-rayas" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="currentColor" stroke-width="1.6" opacity=".45"/></pattern></defs>`;
     for(const b of [D.doradaM,D.doradaT])if(b){const a=(b[0]-dia0)/60000,z=(b[1]-dia0)/60000;o+=`<rect x="${X(a)}" y="8" width="${Math.max(2,X(z)-X(a))}" height="${y0-8}" fill="url(#so-rayas)"/>`}
     o+=`<line x1="0" y1="${y0}" x2="${W}" y2="${y0}" stroke="currentColor" stroke-width="1.5"/>`;
-    for(let h=0;h<=24;h+=3)o+=`<text x="${Math.min(W-16,Math.max(16,X(h*60)))}" y="${H-6}" text-anchor="middle" font-size="19" fill="currentColor">${h}h</text>`;
+    for(let h=0;h<=24;h+=3)o+=`<line x1="${X(h*60)}" y1="${y0}" x2="${X(h*60)}" y2="${y0+6}" stroke="currentColor" stroke-width="1.5"/>`;
+    for(let h=0;h<=24;h+=6)o+=`<text x="${Math.min(W-26,Math.max(26,X(h*60)))}" y="${H-6}" text-anchor="middle" font-size="27" fill="currentColor">${h}h</text>`;
     o+=`<path d="${d}" fill="none" stroke="currentColor" stroke-width="2.4"/>`;
     const a=SOL.posicion(new Date(dia0.getTime()+min*60000),lat,lon).alt;o+=`<line x1="${X(min)}" y1="8" x2="${X(min)}" y2="${y0}" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"/><circle cx="${X(min)}" cy="${Y(a)}" r="7" fill="var(--card)" stroke="currentColor" stroke-width="2.4"/>`;
-    o+=`<text x="6" y="${y0-8}" font-size="19" fill="currentColor">horizonte</text>`;
+    o+=`<text x="6" y="${y0-10}" font-size="25" fill="currentColor">horizonte</text>`;
     return o}
   return function(main){
     cabecera('sol','Sol y sombras','De dónde viene la luz, a cada hora');
     const ahora=new Date();let fecha=ymd(ahora),min=Math.min(1435,Math.round((ahora.getHours()*60+ahora.getMinutes())/5)*5);
     const z=html(`<div class="cz"><div class="lienzo"><svg class="dib" viewBox="0 0 600 380" role="img" id="so-esc"></svg>
-      <svg viewBox="0 0 600 190" id="so-dia" role="img" style="display:block;width:100%;height:auto;margin-top:10px;color:var(--ink);touch-action:none"></svg>
+      <svg viewBox="0 0 600 220" id="so-dia" role="img" style="display:block;width:100%;height:auto;margin-top:10px;color:var(--ink);touch-action:none"></svg>
       <p class="muted" style="margin:4px 0 0">Toca la gráfica para ir a esa hora. Rayado: las horas doradas, con el sol bajo.</p></div><div class="panel"></div></div>`);
     main.append(z);const panel=z.querySelector('.panel'),svg=z.querySelector('#so-esc'),gr=z.querySelector('#so-dia');
     const c1=html(`<div class="caja"><h2 class="ch">Cuándo</h2>
@@ -180,17 +181,25 @@ const VISTA_RUTAS=(function(){
     const total=SITIOS.length+RETOS.length,cuenta=()=>Object.keys(hechos).filter(k=>hechos[k]).length;
     const cab=html(`<p class="dato" id="ru-cuenta" role="status" aria-live="polite"></p>`);main.append(cab);
     const pintaCuenta=()=>{$('#ru-cuenta').textContent=`Llevas ${cuenta()} de ${total}.`};
+    const marcaH=id=>`<span class="hecho" data-marca="${id}">${hechos[id]?'✓ Hecho':''}</span>`;
     const tarjeta=s=>{const n=leccionN(s.lec),L=LECCIONES[n-1],h=hechos[s.id];
-      return `<li class="caja sitio"><h3 class="st">${esc(s.t)}</h3><p>${esc(s.que)}</p><p><b>Reto:</b> ${esc(s.reto)}${L?` <a href="#aprender/${n}">Lección: ${esc(L.t)}</a>`:''}</p>
-        <div class="ops"><button data-hecho="${s.id}" aria-pressed="${!!h}">${h?'✓ Dibujado el '+fecha(h):'Marcar como dibujado'}</button><a class="boton" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(s.q)}" target="_blank" rel="noopener">Ver en el mapa<span class="sr"> (se abre fuera de la app)</span></a></div></li>`};
+      return `<li class="caja sitio" data-sitio="${s.id}"><details><summary><h3 class="st">${esc(s.t)}</h3>${marcaH(s.id)}</summary><div><p>${esc(s.que)}</p><p><b>Reto:</b> ${esc(s.reto)}</p>
+        <div class="ops">${L?`<a class="boton" href="#aprender/${n}">📖 Lección: ${esc(L.t)}</a>`:''}<button data-hecho="${s.id}" aria-pressed="${!!h}">${h?'✓ Dibujado el '+fecha(h):'Marcar como dibujado'}</button><a class="boton" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(s.q)}" target="_blank" rel="noopener">Ver en el mapa<span class="sr"> (se abre fuera de la app)</span></a></div></div></details></li>`};
+    main.append(html(`<div class="ops" role="group" aria-label="Qué sitios enseñar" style="margin:4px 0 6px">${[['todos','Todos'],['pendientes','Sin hacer'],['hechos','Hechos']].map(([k,t])=>`<button data-filtro="${k}" aria-pressed="${k==='todos'}">${t}</button>`).join('')}</div>`),
+      html(`<p class="muted">Toca un sitio para ver su reto.</p>`));
     main.append(html(`<h2>En la ciudad</h2>`),html(`<ul class="sitios">${SITIOS.filter(s=>s.z==='c').map(tarjeta).join('')}</ul>`));
     main.append(html(`<h2>Por la provincia</h2>`),html(`<ul class="sitios">${SITIOS.filter(s=>s.z==='p').map(tarjeta).join('')}</ul>`));
-    main.append(html(`<h2>Retos para cualquier sitio</h2>`),html(`<ul class="sitios">${RETOS.map(r=>{const h=hechos[r.id];return `<li class="caja sitio"><p>${esc(r.t)}</p><div class="ops"><button data-hecho="${r.id}" aria-pressed="${!!h}">${h?'✓ Hecho el '+fecha(h):'Marcar como hecho'}</button></div></li>`}).join('')}</ul>`));
+    main.append(html(`<h2>Retos para cualquier sitio</h2>`),html(`<ul class="sitios">${RETOS.map(r=>{const h=hechos[r.id];return `<li class="caja sitio" data-sitio="${r.id}"><p>${esc(r.t)}</p><div class="ops"><button data-hecho="${r.id}" aria-pressed="${!!h}">${h?'✓ Hecho el '+fecha(h):'Marcar como hecho'}</button></div></li>`}).join('')}</ul>`));
     main.append(html(`<p class="nota">«Ver en el mapa» abre Google Maps fuera de la app. Antes de salir, mira en «Sol y sombras» de dónde vendrá la luz y prepara la mochila con la «Lista de material».</p>`));
     main.append(html(`<div class="ops" style="margin-top:12px"><a class="boton" href="#sol">☀ Sol y sombras</a><a class="boton" href="#material">🎒 Lista de material</a></div>`));
-    main.addEventListener('click',e=>{const b=e.target.closest('[data-hecho]');if(!b)return;const id=b.dataset.hecho,es=SITIOS.some(s=>s.id===id);
+    let filtro='todos';const filtrar=()=>{main.querySelectorAll('[data-sitio]').forEach(li=>{const h=!!hechos[li.dataset.sitio];li.hidden=filtro==='hechos'?!h:filtro==='pendientes'?h:false});
+      main.querySelectorAll('ul.sitios').forEach(ul=>{const h2=ul.previousElementSibling;if(h2&&h2.tagName==='H2')h2.hidden=![...ul.children].some(li=>!li.hidden)})};
+    main.addEventListener('click',e=>{const f=e.target.closest('[data-filtro]');if(f){filtro=f.dataset.filtro;main.querySelectorAll('[data-filtro]').forEach(x=>x.setAttribute('aria-pressed',x===f));filtrar();
+        anunciar(f.textContent+': '+main.querySelectorAll('[data-sitio]:not([hidden])').length+' sitios y retos.');return}
+      const b=e.target.closest('[data-hecho]');if(!b)return;const id=b.dataset.hecho,es=SITIOS.some(s=>s.id===id);
       hechos[id]=hechos[id]?0:Date.now();if(!hechos[id])delete hechos[id];guardarR();
-      b.setAttribute('aria-pressed',!!hechos[id]);b.textContent=hechos[id]?'✓ '+(es?'Dibujado':'Hecho')+' el '+fecha(hechos[id]):(es?'Marcar como dibujado':'Marcar como hecho');pintaCuenta()});
+      b.setAttribute('aria-pressed',!!hechos[id]);b.textContent=hechos[id]?'✓ '+(es?'Dibujado':'Hecho')+' el '+fecha(hechos[id]):(es?'Marcar como dibujado':'Marcar como hecho');
+      const mk=main.querySelector(`[data-marca="${id}"]`);if(mk)mk.textContent=hechos[id]?'✓ Hecho':'';pintaCuenta()});
     pintaCuenta()}
 })();
 

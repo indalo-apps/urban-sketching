@@ -70,13 +70,8 @@ ETAPAS.valores={pintar(cont){
     svg.innerHTML='';el('image',{href:url,x:0,y:0,width:w,height:h,preserveAspectRatio:'none'},svg);
     svg.setAttribute('aria-label',ver?'Foto original':v.vista==='aguadas'?`Plan de aguadas, paso ${v.paso+1} de ${v.n}`:v.vista==='grises'?'Foto en grises':v.vista==='bordes'?'Mapa de bordes: los contornos principales de la foto, como un dibujo a tinta':v.vista==='trama'?`La foto en ${v.n} tonos hechos con trama ${{paralela:'de líneas paralelas',cruzada:'cruzada',puntos:'de puntos'}[v.trama||'paralela']}`:`Foto en ${v.n} tonos planos`)}
   barra.append(html(`<button id="va-ver" aria-pressed="false">👁 Ver la foto</button>`));
-  const bv=$('#va-ver');let sostener=false;
-  bv.addEventListener('pointerdown',()=>{sostener=true;ver=true;render()});
-  const soltar=()=>{if(!sostener)return;sostener=false;setTimeout(()=>{if(bv.getAttribute('aria-pressed')!=='true'){ver=false;render()}},0)};
-  bv.addEventListener('pointerup',soltar);bv.addEventListener('pointerleave',soltar);
-  bv.addEventListener('click',e=>{if(e.detail===0){const on=bv.getAttribute('aria-pressed')!=='true';bv.setAttribute('aria-pressed',on);ver=on;render()}});// teclado: alterna
-  bv.addEventListener('contextmenu',e=>e.preventDefault());
-  barra.append(html(`<span class="muted" style="align-self:center">Mantén pulsado para comparar</span>`));
+  botonVer($('#va-ver'),v=>{ver=v;render()});
+  barra.append(html(`<span class="muted" style="align-self:center">Toca o mantén pulsado</span>`));
   function pintarPanel(){panel.innerHTML='';const {u,T}=C,ton=TONOS[v.n];
     const c1=html(`<div class="caja"><h2 class="ch">Tonos</h2><div class="ops" role="group" aria-label="Número de tonos">${[2,3,4,5].map(n=>`<button data-n="${n}" aria-pressed="${v.n===n}">${n===2?'2 · Notan':n}</button>`).join('')}</div>
       <div class="tonos" aria-hidden="true">${ton.map((L,i)=>`<div class="tono" style="background:rgb(${Lg(L)},${Lg(L)},${Lg(L)});color:${L>55?'#111':'#fff'}">${NOMBRES[v.n][i]}<br><b>${pct(T.cuenta[i])}</b></div>`).join('')}</div>

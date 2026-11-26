@@ -27,11 +27,8 @@ ETAPAS.comparar={pintar(cont){
   svg.addEventListener('pointermove',e=>{if(!ini||e.pointerId!==ini.id)return;const q=puntoSVG(svg,e);c.x=ini.x+q.x-ini.q.x;c.y=ini.y+q.y-ini.q.y;dibujar()});
   const fin=()=>{if(ini){ini=null;guardar()}};svg.addEventListener('pointerup',fin);svg.addEventListener('pointercancel',fin);
   // barra: ver solo la foto mientras se mantiene pulsado
-  barra.append(html(`<button id="cm-foto" aria-pressed="false">👁 Ver solo la foto</button>`),html(`<span class="muted" style="align-self:center">Mantén pulsado para comparar</span>`));
-  const bf=$('#cm-foto');bf.addEventListener('pointerdown',()=>{soloFoto=true;dibujar()});
-  const suelta=()=>{if(bf.getAttribute('aria-pressed')!=='true'){soloFoto=false;dibujar()}};bf.addEventListener('pointerup',suelta);bf.addEventListener('pointerleave',suelta);
-  bf.addEventListener('click',e=>{if(e.detail===0){const on=bf.getAttribute('aria-pressed')!=='true';bf.setAttribute('aria-pressed',on);soloFoto=on;dibujar()}});
-  bf.addEventListener('contextmenu',e=>e.preventDefault());
+  barra.append(html(`<button id="cm-foto" aria-pressed="false">👁 Ver solo la foto</button>`),html(`<span class="muted" style="align-self:center">Toca o mantén pulsado</span>`));
+  botonVer($('#cm-foto'),v=>{soloFoto=v;dibujar()});
   // elegir la foto del apunte
   const entrada=html('<input type="file" accept="image/*" capture="environment" hidden>'),galeria=html('<input type="file" accept="image/*" hidden>');cont.append(entrada,galeria);
   async function recibir(f){if(!f)return;try{const u=URL.createObjectURL(f),im=new Image();im.src=u;await im.decode();

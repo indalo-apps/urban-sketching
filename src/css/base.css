@@ -11,11 +11,11 @@
 :root[data-letra="grande"]{--esc:1.14}:root[data-letra="muy-grande"]{--esc:1.3}
 @media (pointer:coarse){:root{--esc:var(--esc-sis,1.2)}:root[data-letra="grande"]{--esc:calc(var(--esc-sis,1.2) * 1.15)}:root[data-letra="muy-grande"]{--esc:calc(var(--esc-sis,1.2) * 1.3)}}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(var(--cab,61px) + var(--fijo,0px) + 8px)}
 body{margin:0;background:var(--paper);color:var(--ink);font:calc(14px * var(--esc))/1.45 Inter,system-ui,sans-serif;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 a{color:inherit}
-button,.boton{font:inherit;border:1px solid var(--line);background:var(--btn);border-radius:10px;padding:8px 12px;cursor:pointer;color:var(--ink);min-height:44px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button,.boton{font:inherit;border:1px solid var(--line);background:var(--btn);border-radius:10px;padding:8px 12px;cursor:pointer;color:var(--ink);min-height:44px;min-width:44px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 button:hover{border-color:#bfb19b}
 button.on,button[aria-pressed="true"]{background:var(--btn-on);color:var(--btn-on-t);border-color:var(--btn-on)}
 button.prim{background:var(--accent);color:var(--accent-t);border-color:var(--accent);font-weight:600}
@@ -35,6 +35,7 @@ h2>svg.ic{width:1em;height:1em;margin-right:.3em}
 .titulo{padding:14px 18px 4px;max-width:1240px;margin:0 auto}
 h1{font:600 calc(30px * var(--esc))/1.1 "Cormorant Garamond",Georgia,serif;margin:0}
 .titulo .sub{color:var(--muted);margin:4px 0 0}
+.titulo.compacto{padding-top:10px}.titulo.compacto h1{font-size:calc(24px * var(--esc));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 main{display:block}
 #app{max-width:1240px;margin:0 auto;padding:6px 18px 24px}
 h2{font:600 calc(23px * var(--esc))/1.15 "Cormorant Garamond",Georgia,serif;margin:18px 0 8px}
@@ -59,18 +60,37 @@ h2.ch{margin:0 0 8px;font-size:calc(12px * var(--esc));line-height:1.3}
 .aviso-foto{background:var(--tipbg);color:var(--tipt);border-radius:12px;padding:10px 12px;margin:12px 0}
 /* Etapas */
 .etapas{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:4px 0 12px}
-@media (max-width:640px){.etapas{grid-template-columns:repeat(3,minmax(0,1fr))}.etapas button{flex-direction:row;gap:6px}}
+@media (max-width:640px){.etapas{display:flex;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;margin:4px -18px 10px;padding:0 18px 2px}.etapas::-webkit-scrollbar{display:none}.etapas button{flex:none;flex-direction:row;gap:6px;padding:6px 12px;scroll-snap-align:center}}
 .etapas button{flex-direction:column;gap:2px;padding:6px 4px;font-size:calc(13px * var(--esc))}
 .etapas button .n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700;border:1.5px solid currentColor}
 .etapas button[aria-selected="true"]{background:var(--accent);color:var(--accent-t);border-color:var(--accent);font-weight:600}
 .etapas button[aria-selected="true"] .n{background:var(--accent-t);color:var(--accent);border-color:var(--accent-t)}
 /* Zona de trabajo: dibujo + controles */
-.cz{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
+.cz{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}.cz>*{min-width:0}
 @media (min-width:761px){.cz{grid-template-columns:minmax(0,1fr) 340px}.cz .lienzo{position:sticky;top:70px}}
 .lienzo{background:var(--stage);border-radius:14px;padding:14px;position:relative}
 .lienzo svg.dib{overflow:hidden}
 .lienzo svg.dib{display:block;width:100%;height:auto;max-height:calc(100vh - 210px);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-@media (max-width:760px){.lienzo svg.dib{max-height:62vh}}
+@media (max-width:760px){.lienzo svg.dib{max-height:62vh}
+  .cz.fija .lienzo{position:sticky;top:var(--cab,61px);z-index:5;padding:8px;box-shadow:0 8px 14px -12px rgba(0,0,0,.5)}
+  .cz.fija .lienzo svg.dib{max-height:34vh}
+  .cz.fija .lienzo .barra{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:6px -8px 0;padding:0 8px}.cz.fija .lienzo .barra::-webkit-scrollbar{display:none}
+  .cz.fija .lienzo .barra>*{flex:none}}
+@media (max-width:760px) and (max-height:520px){.cz.fija .lienzo{position:relative;top:auto}.cz.fija .lienzo svg.dib{max-height:62vh}}
+.sig-mini{font-weight:600;color:var(--accent)}
+/* Lupa al arrastrar un punto */
+.lupa{position:absolute;width:132px;height:132px;border-radius:50%;overflow:hidden;border:3px solid #141210;box-shadow:0 0 0 2px #fff,0 6px 18px rgba(0,0,0,.35);background:#d8cfbf;pointer-events:none;z-index:6}
+.lupa svg{width:100%;height:100%;display:block}
+.lupa .mira{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;background:linear-gradient(#141210,#141210) center/2px 100% no-repeat,linear-gradient(#141210,#141210) center/100% 2px no-repeat;filter:drop-shadow(0 0 1.5px #fff)}
+/* Partes de una etapa y explicaciones plegadas */
+.ops.partes{gap:6px}
+.ops.partes button{flex:1 1 auto;padding:6px 10px}
+details.saber{margin-top:8px}
+details.saber summary{min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--accent);font-weight:600;list-style:none}
+details.saber summary::-webkit-details-marker{display:none}
+details.saber summary::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-4px 0 0 2px;transition:transform .15s}
+details.saber[open] summary::after{transform:rotate(-135deg);margin-top:4px}
+details.saber p{margin:4px 0 8px}
 .lienzo .barra{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .lienzo .barra button{padding:6px 10px}
 .panel{display:flex;flex-direction:column;gap:12px}
@@ -109,7 +129,9 @@ ul.lista{margin:0;padding-left:1.1em}ul.lista li{margin:4px 0}
 .tabla-mezclas{overflow:auto}
 .tabla-mezclas table{border-collapse:separate;border-spacing:3px;font-size:calc(11.5px * var(--esc))}
 .tabla-mezclas th{font-weight:600;text-align:left;vertical-align:bottom;max-width:90px;padding:2px}
-.tabla-mezclas td{width:44px;height:44px;border-radius:8px;border:1px solid rgba(0,0,0,.15)}
+.tabla-mezclas td{width:44px;height:44px;border-radius:8px;border:1px solid rgba(0,0,0,.15);text-align:center;font-weight:700;font-size:12px;padding:0}
+.tabla-mezclas td button{width:100%;height:100%;min-height:44px;min-width:44px;border:0;background:none;padding:0;font-weight:700;font-size:12px;color:inherit;border-radius:8px}
+.tabla-mezclas td button.on{outline:3px solid var(--ink);outline-offset:1px}
 .lista-caja{max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:2px;margin:8px 0}
 .lista-caja label{display:flex;gap:10px;align-items:center;min-height:44px;padding:2px 4px;border-radius:8px}
 .lista-caja input{width:22px;height:22px;accent-color:var(--accent)}
@@ -134,6 +156,12 @@ ul.lista{margin:0;padding-left:1.1em}ul.lista li{margin:4px 0}
 /* Salir a dibujar */
 .sitios{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .sitio{display:flex;flex-direction:column}.sitio .ops{margin-top:auto}
+.sitio summary{min-height:44px;display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+.sitio summary::-webkit-details-marker{display:none}
+.sitio summary::after{content:"";flex:none;width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-5px 4px 0 auto}
+.sitio details[open] summary::after{transform:rotate(-135deg);margin-top:4px}
+.sitio summary .st{margin:0}.sitio summary .hecho{font-weight:600;white-space:nowrap}
+.sitio details>div{padding-top:8px}
 .sitio h3.st{font:600 calc(17px * var(--esc))/1.25 Inter,system-ui,sans-serif;text-transform:none;letter-spacing:0;color:var(--ink);margin:0 0 6px}
 fieldset.caja{margin:0 0 12px;min-width:0}fieldset.caja legend{padding:0 4px;float:left;width:100%;margin-bottom:6px}
 .item-mat{display:flex;align-items:center;gap:6px;clear:both}

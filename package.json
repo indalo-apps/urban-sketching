@@ -5,7 +5,8 @@
     "construir": "node herramientas/construir.js",
     "calculos": "node pruebas/calculos.js",
     "navegador": "node pruebas/con-servidor.js pruebas/navegador.js",
-    "test": "node herramientas/construir.js --ver && node pruebas/calculos.js && node pruebas/con-servidor.js pruebas/navegador.js"
+    "test": "node herramientas/construir.js --ver && node pruebas/calculos.js && node pruebas/con-servidor.js pruebas/navegador.js pruebas/usabilidad.js",
+    "usabilidad": "node pruebas/con-servidor.js pruebas/usabilidad.js"
   },
   "devDependencies": {
     "axe-core": "^4.14.1",

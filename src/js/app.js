@@ -67,14 +67,16 @@ const PADRE={mis:['#inicio','Inicio'],natural:['#inicio','Inicio'],sol:['#inicio
 function cabecera(ruta,titulo,sub){
   const v=$('#volver'),pa=PADRE[ruta];v.hidden=!pa;$('#casa').hidden=ruta==='inicio';
   if(pa){v.textContent='‹ '+pa[1];v.setAttribute('aria-label','Volver a '+pa[1]);v.onclick=()=>{location.hash=pa[0]}}
-  $('#titulo').hidden=ruta==='inicio';$('#h1').textContent=titulo||'Urban Sketching';const s=$('#sub');s.hidden=!sub;s.textContent=sub||'';
-  document.title=(ruta==='inicio'?'':titulo+' · ')+'Urban Sketching'}
+  $('#titulo').hidden=ruta==='inicio';$('#titulo').classList.toggle('compacto',ruta==='foto');$('#h1').textContent=titulo||'Urban Sketching';const s=$('#sub');s.hidden=!sub||ruta==='foto';s.textContent=sub||'';
+  document.title=(ruta==='inicio'?'':titulo+(ruta==='foto'&&sub?' · '+sub:'')+' · ')+'Urban Sketching'}
+// Alto de la cabecera fija, para que la foto se quede justo debajo al bajar
+(function(){const c=$('.cab'),f=()=>document.documentElement.style.setProperty('--cab',c.offsetHeight+'px');f();if(window.ResizeObserver)new ResizeObserver(f).observe(c)})();
 let rutaActual='',limpiar=null;
 async function pintar(){
   if(limpiar){try{limpiar()}catch(e){}limpiar=null}
   const partes=(location.hash||'#inicio').slice(1).split('/'),ruta=partes[0]||'inicio',main=$('#app');
   main.innerHTML='';main.className='';void main.offsetWidth;main.className='vista';
-  rutaActual=ruta;scrollTo(0,0);
+  rutaActual=ruta;scrollTo(0,0);document.documentElement.style.setProperty('--fijo','0px');
   if(ruta==='foto'){const ok=await abrirApunte(partes[1]);if(!ok){location.replace('#mis');return}
     let et=ORDEN_ETAPAS.includes(partes[2])?partes[2]:US.p.etapa||'encuadre';US.p.etapa=et;guardar();
     store.set('us-ultimo',{id:US.id,etapa:et});return vistaFoto(main,et)}
@@ -116,10 +118,10 @@ async function vistaInicio(main){
   t.append(html(`<a class="boton tarjeta" href="#material"><span class="tic">${ICONO('mochila')}</span><span><b>Lista de material</b><span class="muted">Lo que llevas al salir, con recordatorio en tu calendario</span></span></a>`));
   t.append(html(`<a class="boton tarjeta" href="#aprender"><span class="tic">${ICONO('perspectiva')}</span><span><b>Aprender perspectiva</b><span class="muted">${LECCIONES.length} lecciones con dibujos que se mueven</span></span></a>`));
   t.append(html(`<a class="boton tarjeta" href="#mis"><span class="tic">${ICONO('cuaderno')}</span><span><b>Mis apuntes</b><span class="muted">Las fotos que has trabajado, guardadas en este móvil</span></span></a>`));
-  t.append(html(`<button class="tarjeta" id="t-ejemplo"><span class="tic">${ICONO('imagen')}</span><span><b>Probar con un ejemplo</b><span class="muted">Una esquina inventada, para ver cómo funciona sin buscar una foto</span></span></button>`));
+  t.append(html(`<button class="tarjeta" id="t-ejemplo"><span class="tic">${ICONO('piezas')}</span><span><b>Probar con un ejemplo</b><span class="muted">Una esquina inventada, para ver cómo funciona sin buscar una foto</span></span></button>`));
   const s=$('#t-seguir');if(s)s.onclick=()=>{location.hash='#foto/'+u.id+'/'+u.etapa};
   $('#t-foto').onclick=elegirFoto;$('#t-ejemplo').onclick=apunteEjemplo;
-  if(!store.get('us-aviso-fotos',false)){const a=html(`<div class="aviso-foto aviso-guardado" role="note"><p>${AVISO_FOTOS}</p><div class="ops" style="margin-top:8px"><button id="av-ok">Entendido</button><a class="boton" href="#mis">Ver mis apuntes</a></div></div>`);
+  if(!store.get('us-aviso-fotos',false)){const a=html(`<div class="aviso-foto aviso-guardado" role="note"><p><b>⚠ Tus fotos y apuntes se guardan solo en esta app, en este móvil.</b> No van al carrete ni a iCloud.</p><details class="saber"><summary>Más detalles</summary><p>${AVISO_FOTOS.replace(/^<b>.*?<\/b>\s*/,'')}</p></details><div class="ops" style="margin-top:4px"><button id="av-ok">Entendido</button></div></div>`);
     t.before(a);a.querySelector('#av-ok').onclick=()=>{store.set('us-aviso-fotos',true);a.remove();anunciar('Aviso cerrado. Lo tienes siempre en Mis apuntes y en Ajustes.');$('#t-foto').focus()}}
   main.append(html(`<p class="aviso-foto"><b>Un consejo de Bruno Mollière:</b> la perspectiva se aprende mejor dibujando al natural que copiando fotos, porque el gran angular del móvil deforma los bordes. Usa las fotos para comprobar y planificar, y sal a la calle con «Al natural».</p>`))}
 /* ---------- Mis apuntes ---------- */
@@ -147,33 +149,58 @@ function vistaFoto(main,et){
   tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;const i=ORDEN_ETAPAS.indexOf(et)+(e.key==='ArrowRight'?1:-1);
     if(i>=0&&i<ORDEN_ETAPAS.length){location.hash='#foto/'+p.id+'/'+ORDEN_ETAPAS[i];setTimeout(()=>{const t=$('#tab-'+ORDEN_ETAPAS[i]);if(t)t.focus()},80)}});
   const cont=html(`<div id="etapa" role="tabpanel" aria-labelledby="tab-${et}"></div>`);main.append(cont);
-  ETAPAS[et].pintar(cont)}
+  const tb=tabs.querySelector('[aria-selected="true"]');if(tb&&tabs.scrollWidth>tabs.clientWidth)tabs.scrollLeft=tb.offsetLeft-(tabs.clientWidth-tb.offsetWidth)/2;
+  ETAPAS[et].pintar(cont);
+  // «Siguiente» también debajo de la foto, que se queda fija al bajar
+  const i=ORDEN_ETAPAS.indexOf(et),sig=ORDEN_ETAPAS[i+1],barra=cont.querySelector('.lienzo .barra');
+  if(sig&&barra){const b=html(`<button class="sig-mini">${NOMBRE_ETAPA[sig]} →</button>`);b.onclick=()=>{location.hash='#foto/'+p.id+'/'+sig};barra.append(b)}}
 function botonSiguiente(et){const i=ORDEN_ETAPAS.indexOf(et),sig=ORDEN_ETAPAS[i+1];
   const b=html(`<button class="prim siguiente">${sig?'Siguiente: '+NOMBRE_ETAPA[sig].toLowerCase()+' →':'Volver a Mis apuntes'}</button>`);
   b.onclick=()=>{location.hash=sig?'#foto/'+US.p.id+'/'+sig:'#mis'};return b}
 /* ---------- Lienzo SVG sobre la foto, con puntos que se arrastran ---------- */
 function crearZona(cont){
-  const z=html(`<div class="cz"><div class="lienzo"><svg class="dib" xmlns="${NS}" role="group"></svg><div class="barra"></div></div><div class="panel"></div></div>`);cont.append(z);
+  const z=html(`<div class="cz fija"><div class="lienzo"><svg class="dib" xmlns="${NS}" role="group"></svg><div class="barra"></div></div><div class="panel"></div></div>`);cont.append(z);
+  // Lo que queda fijo arriba no debe tapar el botón al que se salta con el teclado o el lector de pantalla
+  const lz=z.querySelector('.lienzo'),fijo=()=>document.documentElement.style.setProperty('--fijo',(getComputedStyle(lz).position==='sticky'?lz.offsetHeight:0)+'px');
+  requestAnimationFrame(fijo);if(window.ResizeObserver)new ResizeObserver(fijo).observe(lz);
   return {zona:z,svg:z.querySelector('svg'),barra:z.querySelector('.barra'),panel:z.querySelector('.panel'),lienzo:z.querySelector('.lienzo')}}
 // Unidades del dibujo que ocupa un píxel de pantalla (para que puntos y letras tengan siempre el mismo tamaño)
 function unidad(svg){const vb=svg.viewBox.baseVal,r=svg.getBoundingClientRect();return r.width?Math.max(vb.width/r.width,vb.height/r.height):1}
 function puntoSVG(svg,ev){const p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
 /* Arrastre: los elementos con data-asa se pueden mover con el dedo, el ratón o el teclado (flechas).
    mover(id, [x, y]) recibe la posición nueva; seleccionar(id) marca el punto activo para los botones de mover. */
-function arrastres(svg,{mover,soltar,seleccionar,tocar}){
-  let activo=null,id0=null;
+function arrastres(svg,{mover,soltar,seleccionar,tocar,empezar}){
+  let activo=null,id0=null;const lu=lupa(svg);
   svg.addEventListener('pointerdown',e=>{const a=e.target.closest('[data-asa]');
     if(!a){if(tocar){const p=puntoSVG(svg,e);tocar([p.x,p.y],e)}return}
-    e.preventDefault();activo=a.dataset.asa;id0=e.pointerId;try{svg.setPointerCapture(e.pointerId)}catch(_){}if(seleccionar)seleccionar(activo)});
-  svg.addEventListener('pointermove',e=>{if(!activo||e.pointerId!==id0)return;const p=puntoSVG(svg,e);mover(activo,[p.x,p.y])});
-  const fin=e=>{if(!activo||e.pointerId!==id0)return;const a=activo;activo=null;if(soltar)soltar(a)};
+    e.preventDefault();activo=a.dataset.asa;id0=e.pointerId;try{svg.setPointerCapture(e.pointerId)}catch(_){}if(empezar)empezar(activo);if(seleccionar)seleccionar(activo)});
+  svg.addEventListener('pointermove',e=>{if(!activo||e.pointerId!==id0)return;const p=puntoSVG(svg,e);mover(activo,[p.x,p.y]);lu.ver([p.x,p.y])});
+  const fin=e=>{if(!activo||e.pointerId!==id0)return;const a=activo;activo=null;lu.quitar();if(soltar)soltar(a)};
   svg.addEventListener('pointerup',fin);svg.addEventListener('pointercancel',fin);
   svg.addEventListener('keydown',e=>{const a=e.target.closest&&e.target.closest('[data-asa]');if(!a)return;
     const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!d)return;e.preventDefault();
-    const paso=(e.shiftKey?5:1)*(US.p?Math.max(US.p.w,US.p.h)/200:2);if(seleccionar)seleccionar(a.dataset.asa);
+    const paso=(e.shiftKey?5:1)*(US.p?Math.max(US.p.w,US.p.h)/200:2);if(empezar)empezar(a.dataset.asa);if(seleccionar)seleccionar(a.dataset.asa);
     mover(a.dataset.asa,null,[d[0]*paso,d[1]*paso]);if(soltar)soltar(a.dataset.asa);
     requestAnimationFrame(()=>{const n=svg.querySelector(`[data-asa="${a.dataset.asa}"]`);if(n)n.focus()})});
 }
+/* Lupa: al arrastrar, el dedo tapa el punto; la lupa enseña la zona ampliada en la esquina contraria,
+   con una cruz en el sitio exacto del punto. Copia lo dibujado (sin los puntos ni los textos). */
+function lupa(svg){let d=null;const D=132,AUM=2.6;
+  return {ver(pt){const lz=svg.parentElement;if(!lz)return;
+      if(!d){d=html(`<div class="lupa" aria-hidden="true"><svg xmlns="${NS}"></svg><span class="mira"></span></div>`);lz.append(d)}
+      const s=d.firstElementChild,vb=svg.viewBox.baseVal,r=svg.getBoundingClientRect(),rl=lz.getBoundingClientRect();if(!r.width)return;
+      s.innerHTML=svg.innerHTML;s.querySelectorAll('[data-asa],text').forEach(n=>n.remove());
+      const un=D*(vb.width/r.width)/AUM;s.setAttribute('viewBox',`${pt[0]-un/2} ${pt[1]-un/2} ${un} ${un}`);
+      const sx=r.left+(pt[0]-vb.x)/vb.width*r.width,sy=r.top+(pt[1]-vb.y)/vb.height*r.height,m=10;
+      const izq=sx>r.left+r.width/2,arriba=sy>r.top+r.height*0.45;
+      d.style.left=(izq?r.left-rl.left+m:r.right-rl.left-D-m)+'px';d.style.top=(arriba?r.top-rl.top+m:r.bottom-rl.top-D-m)+'px'},
+    quitar(){if(d){d.remove();d=null}}}}
+// «Ver la foto»: un toque la deja puesta (y otro la quita); mantenido, se ve solo mientras se pulsa
+function botonVer(b,poner){let t0=0,on=false;const fija=v=>{on=v;b.setAttribute('aria-pressed',v);poner(v)};
+  b.addEventListener('pointerdown',()=>{t0=Date.now();if(!on)poner(true)});
+  const suelta=e=>{if(!t0)return;const largo=Date.now()-t0>380||e.type!=='pointerup';t0=0;if(largo){if(!on)poner(false)}else fija(!on)};
+  b.addEventListener('pointerup',suelta);b.addEventListener('pointerleave',suelta);b.addEventListener('pointercancel',suelta);
+  b.addEventListener('click',e=>{if(e.detail===0)fija(!on)});b.addEventListener('contextmenu',e=>e.preventDefault());return {fija}}
 // Botones para mover el punto elegido sin arrastrar (alternativa al gesto)
 function padMover(cont,alMover,etiqueta){
   const d=html(`<div><p class="muted" id="pad-t" style="margin:0 0 6px">${etiqueta}</p><div class="mover" role="group" aria-labelledby="pad-t">

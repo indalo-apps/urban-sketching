@@ -51,13 +51,12 @@ ETAPAS.color={pintar(cont){
       lista.querySelectorAll('[data-sel]').forEach(x=>{const on=+x.dataset.sel===c.sel;x.classList.toggle('sel',on);x.setAttribute('aria-pressed',on)});$('#co-todo').setAttribute('aria-pressed','false');anunciar('Color '+(c.sel+1)+' resaltado en la foto')});
     const c3=html(`<div class="caja"><h2 class="ch">Tabla de mezclas</h2><div id="co-tabla"><p class="muted">Se prepara cuando estén las mezclas…</p></div><div class="ops" style="margin-top:10px"><button id="co-hoja">🖨 Hoja de pruebas para pintar (PDF)</button></div><p class="muted" id="co-hoja-msg" role="status" aria-live="polite"></p></div>`);
     c3.querySelector('#co-hoja').onclick=()=>HOJA.descargar(t=>{const m=$('#co-hoja-msg');if(m)m.textContent=t});
-    const c4=html(`<div class="caja"><h2 class="ch">Paleta limitada: 3 pinturas</h2><p class="muted">Las tres pinturas ${caja.length>=2?'de tu caja':'de la carta'} con las que mejor salen todos estos colores, cada uno con una sola o mezclando dos de ellas. Pesa poco y da armonía al apunte.</p>
+    const c4=html(`<div class="caja"><h2 class="ch">Paleta limitada: 3 pinturas</h2><p class="muted">Las tres pinturas ${caja.length>=2?'de tu caja':'de la carta'} con las que mejor salen todos estos colores.</p>
       <div id="co-trio"></div><div class="ops"><button class="prim" id="co-trio-b">🎨 Buscar mis 3 pinturas</button></div><p class="muted" id="co-trio-msg" role="status" aria-live="polite" style="margin-top:6px"></p></div>`);
     c4.querySelector('#co-trio-b').onclick=()=>buscarTrio();
     panel.append(c1,lista,c4,c3);
     const tk=trioKey();if(US.cache[tk])pintarTrio(US.cache[tk]);
-    if(carta.rotulador)panel.append(html(`<p class="nota"><b>Con rotuladores:</b> las mezclas se hacen superponiendo capas o juntándolas con el pincel de agua; la proporción dice cuánto de cada uno. Según Faber-Castell, el orden importa: amarillo sobre azul no da lo mismo que azul sobre amarillo. Para oscurecer, mejor el complementario que el negro.</p>`));
-    panel.append(html(`<p class="nota">Los colores en pantalla y las mezclas son aproximados: dependen de la pantalla, del papel y de cada pintura (algunas granulan o se aclaran al secar). Prueba siempre en un trozo de papel aparte.</p>`));
+    panel.append(html(`<div class="nota"><b>Los colores son aproximados.</b> Prueba siempre en un trozo de papel aparte.<details class="saber"><summary>Ten en cuenta</summary><p>Dependen de la pantalla, del papel y de cada pintura (algunas granulan o se aclaran al secar).</p>${carta.rotulador?'<p><b>Con rotuladores:</b> las mezclas se hacen superponiendo capas o juntándolas con el pincel de agua; la proporción dice cuánto de cada uno. Según Faber-Castell, el orden importa: amarillo sobre azul no da lo mismo que azul sobre amarillo. Para oscurecer, mejor el complementario que el negro.</p>':''}</details></div>`));
     panel.append(botonSiguiente('color'));
     mezclas((res,fin)=>{res.forEach((ops,i)=>{const z=lista.querySelector(`[data-mz="${i}"]`);if(!z||z.dataset.ok)return;z.dataset.ok=1;
         z.innerHTML=ops.map((o,j)=>`<span class="mezcla"><span class="m" style="background:${o.hex}" aria-hidden="true"></span><span>${j?'O bien: ':''}${esc(o.texto)} <span class="muted">(${parecido(o.de)})</span></span></span>`).join('')});
@@ -79,16 +78,19 @@ ETAPAS.color={pintar(cont){
       <p>Con estas tres: <b>${parecido(o.media)}</b> de media${o.peor>8?`; el que peor sale, ${parecido(o.peor)}`:''}.</p>
       <ol class="capas">${o.mz.map((x,i)=>`<li><span class="mezcla" style="margin:0"><span class="m" style="background:${x.hex}" aria-hidden="true"></span><span>Color ${i+1}: ${esc(textoMezcla(x,o.ps))} <span class="muted">(${parecido(x.de)})</span></span></span></li>`).join('')}</ol>
       ${res.length>1?`<p class="muted" style="margin-top:8px">Otras opciones: ${res.slice(1).map(r=>r.ps.map(p=>esc(p.nombre)).join(' + ')+' ('+parecido(r.media)+')').join('; ')}.</p>`:''}
-      <p class="muted" style="margin-top:6px">Felix Scheinberger recuerda que con tres colores se puede mezclar casi todo. No tienen por qué ser rojo, amarillo y azul: son las tres que mejor sacan los colores de esta foto.</p>`}
+      <details class="saber"><summary>¿Por qué solo tres?</summary><p>Cada color sale con una sola de ellas o mezclando dos. Pesa poco y da armonía al apunte. Felix Scheinberger recuerda que con tres colores se puede mezclar casi todo; no tienen por qué ser rojo, amarillo y azul: son las tres que mejor sacan los colores de esta foto.</p></details>`}
   function tabla(res){const t=$('#co-tabla');if(!t)return;const usados=[];
     for(const ops of res)for(const g of ops[0].pigs)if(!usados.find(u=>u.hex===g.hex&&u.nombre===g.nombre))usados.push(g);
     const U=usados.slice(0,6);if(!U.length){t.innerHTML='';return}
     const R=U.map(u=>COLOR.reflect(u.hex)),hx=(a,b)=>COLOR.reflHex(a===b?COLOR.mezclar([R[a]],[1],1):COLOR.mezclar([R[a],R[b]],[1,1],1));
-    let s=`<p class="muted">Las pinturas de tus mezclas, cada una con las demás a partes iguales. En la diagonal, la pintura sola.</p><div class="tabla-mezclas"><table><thead><tr><th scope="col"><span class="sr">Pintura</span></th>${U.map((u,i)=>`<th scope="col">${i+1}</th>`).join('')}</tr></thead><tbody>`;
-    U.forEach((u,a)=>{s+=`<tr><th scope="row">${a+1}. ${esc(nombreP(u))}</th>`+U.map((v,b)=>`<td style="background:${hx(a,b)}" title="${a===b?esc(nombreP(u))+' sola':esc(nombreP(u))+' con '+esc(nombreP(v))}"><span class="sr">${a===b?esc(nombreP(u))+' sola':esc(nombreP(u))+' con '+esc(nombreP(v))}</span></td>`).join('')+'</tr>'});
-    s+=`</tbody></table></div><p class="muted" style="margin-top:10px">Con agua, de cargada a muy aguada:</p><div class="tabla-mezclas"><table><tbody>`;
-    U.forEach((u,a)=>{s+=`<tr><th scope="row">${a+1}. ${esc(u.nombre)}</th>`+[1,0.55,0.3,0.15].map(t=>`<td style="background:${COLOR.reflHex(COLOR.mezclar([R[a]],[1],t))}"><span class="sr">${COLOR.textoCarga(t)}</span></td>`).join('')+'</tr>'});
-    t.innerHTML=s+'</tbody></table></div>'}
+    const VL={claro:'C',medio:'M',oscuro:'O'},txt=h=>{const L=COLOR.hexLab(h);return {v:COLOR.valor(L),t:COLOR.temperatura(L),tinta:L[0]>50?'#141210':'#fff'}};
+    const celda=(h,nombre)=>{const d=txt(h);return `<td style="background:${h};color:${d.tinta}"><button data-celda="${esc(nombre)}. Valor ${d.v}, ${esc(d.t)}" aria-label="${VL[d.v]}: ${esc(nombre)}, valor ${d.v}">${VL[d.v]}</button></td>`};
+    let s=`<p class="muted">Cada pintura con las demás a partes iguales; en la diagonal, la pintura sola. La letra es su valor: <b>C</b> claro, <b>M</b> medio, <b>O</b> oscuro. Toca una casilla para ver qué mezcla es.</p><div class="tabla-mezclas"><table><thead><tr><th scope="col"><span class="sr">Pintura</span></th>${U.map((u,i)=>`<th scope="col">${i+1}</th>`).join('')}</tr></thead><tbody>`;
+    U.forEach((u,a)=>{s+=`<tr><th scope="row">${a+1}. ${esc(nombreP(u))}</th>`+U.map((v,b)=>celda(hx(a,b),a===b?nombreP(u)+' sola':nombreP(u)+' con '+nombreP(v))).join('')+'</tr>'});
+    s+=`</tbody></table></div><p class="nota" id="co-celda" role="status" aria-live="polite" style="margin-top:8px">Toca una casilla.</p><p class="muted" style="margin-top:10px">Con agua, de cargada a muy aguada:</p><div class="tabla-mezclas"><table><tbody>`;
+    U.forEach((u,a)=>{s+=`<tr><th scope="row">${a+1}. ${esc(u.nombre)}</th>`+[1,0.55,0.3,0.15].map(t=>celda(COLOR.reflHex(COLOR.mezclar([R[a]],[1],t)),u.nombre+', '+COLOR.textoCarga(t))).join('')+'</tr>'});
+    t.innerHTML=s+'</tbody></table></div>';
+    t.onclick=e=>{const b=e.target.closest('[data-celda]');if(!b)return;t.querySelectorAll('[data-celda].on').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('#co-celda').textContent=b.dataset.celda+'.'}}
   pintarPanel();render();
   limpiar=()=>{trabajo++;trioT++};
 }};
