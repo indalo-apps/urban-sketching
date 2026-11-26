@@ -114,4 +114,21 @@ prueba('temperatura',C.temperatura(C.hexLab('#e7450b'))==='cálido'&&C.temperatu
   prueba('sol: sombra de 1 m con el sol a 45° mide 1 m',cerca(S.sombra(1,45),1,1e-9));
   prueba('sol: rumbos',S.rumbo(0)==='norte'&&S.rumbo(225)==='suroeste'&&S.rumbo(90,true)==='este'&&S.rumbo(350,true)==='norte');
   prueba('sol: horas doradas antes de la puesta',ver.doradaT&&ver.doradaT[1]-ver.puesta===0&&ver.doradaT[0]<ver.puesta);}
+// 9) Buscar las aristas en una foto simulada: un edificio en esquina con bandas de ventanas, cielo y suelo.
+//    (Falló en la v1.3.1: las rectas no se apoyaban en el edificio.) La app debe encontrar A y B cerca de los de verdad.
+{const AR=require(path.join(__dirname,'../src/js/aristas.js'));
+  for(const yaw of [25,40,55]){const c=camara({yaw,w:900,h:675,f:650}),W=c.w,H=c.h,d=new Uint8ClampedArray(W*H*4);
+    const pinta=(pol,v)=>{const ys=pol.map(q=>q[1]),y0=Math.max(0,Math.floor(Math.min(...ys))),y1=Math.min(H-1,Math.ceil(Math.max(...ys)));
+      for(let y=y0;y<=y1;y++){const xs=[];for(let i=0;i<pol.length;i++){const a=pol[i],b=pol[(i+1)%pol.length];if((a[1]<=y+.5)!==(b[1]<=y+.5))xs.push(a[0]+(y+.5-a[1])*(b[0]-a[0])/(b[1]-a[1]))}
+        xs.sort((a,b)=>a-b);for(let k=0;k+1<xs.length;k+=2)for(let x=Math.max(0,Math.ceil(xs[k]-.5));x<=Math.min(W-1,Math.floor(xs[k+1]-.5));x++){const j=(y*W+x)*4;d[j]=d[j+1]=d[j+2]=v;d[j+3]=255}}};
+    pinta([[0,0],[W,0],[W,H],[0,H]],200);pinta([[0,H/2],[W,H/2],[W,H],[0,H]],120);// cielo y suelo
+    const X0=16*Math.sin(yaw*Math.PI/180),Z0=16*Math.cos(yaw*Math.PI/180),L=16,alto=12,P=q=>c.ver(q);// esquina delante, fachadas hacia +X y +Z
+    pinta([P([X0,0,Z0]),P([X0+L,0,Z0]),P([X0+L,alto,Z0]),P([X0,alto,Z0])],170);
+    pinta([P([X0,0,Z0]),P([X0,0,Z0+L]),P([X0,alto,Z0+L]),P([X0,alto,Z0])],230);
+    for(let y=1.5;y<alto-1;y+=2.4){pinta([P([X0+.6,y,Z0]),P([X0+L-.6,y,Z0]),P([X0+L-.6,y+1.2,Z0]),P([X0+.6,y+1.2,Z0])],60);
+      pinta([P([X0,y,Z0+.6]),P([X0,y,Z0+L-.6]),P([X0,y+1.2,Z0+L-.6]),P([X0,y+1.2,Z0+.6])],90)}
+    const r=AR.buscar(d,W,H,2),F=[c.dir([1,0,0]),c.dir([0,0,1])].sort((u,v)=>u[0]-v[0]),A=F[0],B=F[1],err=(Q,V)=>{if(!Q||!V)return 99;let e=Math.abs(Math.atan2(Q[1]-H/2,Q[0]-W/2)-Math.atan2(V[1]-H/2,V[0]-W/2));return Math.min(e,2*Math.PI-e)*180/Math.PI};
+    prueba(`aristas: A encontrado (giro ${yaw}°)`,!!r.A&&err(r.PA,A)<1.5,JSON.stringify([r.PA,A]));
+    prueba(`aristas: B encontrado (giro ${yaw}°)`,!!r.B&&err(r.PB,B)<1.5,JSON.stringify([r.PB,B]));
+    prueba(`aristas: las rectas A van al punto A y las B al B (giro ${yaw}°)`,r.A&&r.B&&G.dist(G.puntoFuga(r.A),r.PA)<2&&G.dist(G.puntoFuga(r.B),r.PB)<2)}}
 console.log(`${mal?'✗':'✓'} cálculos: ${ok} comprobaciones bien${mal?', '+mal+' mal':''}`);process.exit(mal?1:0);

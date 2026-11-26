@@ -63,9 +63,20 @@ function textoProporcion(r){const ancha=r>=1,v=ancha?r:1/r,n=Math.floor(v+1e-9),
   let t=rem<0.1?(n===1?'un cuadrado':`${num} cuadrados`):rem<0.35?`${num} cuadrado${n>1?'s':''} y un cuarto`:rem<0.65?`${num} cuadrado${n>1?'s':''} y medio`:rem<0.9?`${num} cuadrado${n>1?'s':''} y tres cuartos`:`casi ${['','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece'][n+1]||n+1} cuadrados`;
   t=t.replace(/^un cuadrado y/,'un cuadrado y');
   return (ancha?`Ancho = ${fmt(v,2)} × alto: `:`Alto = ${fmt(v,2)} × ancho: `)+t+(ancha?' a lo ancho':' a lo alto')}
-window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto,todas,proporcion,textoProporcion};
+/* Busca las aristas en la foto (aristas.js) y coloca las rectas de cada familia del modo.
+   Las familias que no se encuentran se quedan en su sitio por defecto. Devuelve las letras encontradas. */
+function autoRectas(p,modo,solo){const img=US.img;if(!img||!window.ARISTAS)return [];
+  try{const k=Math.min(1,900/Math.max(p.w,p.h)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(p.w*k));c.height=Math.max(1,Math.round(p.h*k));
+    const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,c.width,c.height);
+    const r=ARISTAS.buscar(x.getImageData(0,0,c.width,c.height).data,c.width,c.height,modo),d=porDefecto(p,modo),ok=[];
+    for(const f of solo||familias(modo)){if(r[f]){p.pers.lineas[f]=r[f].map(l=>l.map(q=>[Math.round(q[0]/k*10)/10,Math.round(q[1]/k*10)/10]));ok.push(f)}else p.pers.lineas[f]=d[f]}
+    return ok}catch(e){return []}}
+function textoAutoDe(s){const ok=s.auto||[],fs=familias(s.modo),no=fs.filter(f=>!ok.includes(f));
+  if(!ok.length)return 'No he encontrado aristas claras en la foto: coloca las rectas a mano, apoyándolas en aleros, zócalos o filas de ventanas.';
+  return 'He buscado las aristas en la foto y he colocado '+(ok.length>1?'las rectas '+ok.join(' y '):'la recta '+ok[0])+'.'+(no.length?' '+(no.length>1?'Las de '+no.join(' y ')+' no las he encontrado':'La '+no[0]+' no la he encontrado')+': colócala'+(no.length>1?'s':'')+' a mano.':'')+' Revísalas y arrastra las que no se apoyen bien en una arista.'}
+window.ENCAJE={calcular,autoRectas,dondeEn,alturaHz,familias,porDefecto,todas,proporcion,textoProporcion};
 ETAPAS.encaje={pintar(cont){
-  const p=US.p,s=p.pers;if(!s.lineas)s.lineas=porDefecto(p,s.modo);if(s.ojo==null)s.ojo=PREF.ojo;
+  const p=US.p,s=p.pers;if(!s.lineas){s.lineas=porDefecto(p,s.modo);s.auto=autoRectas(p,s.modo)}if(s.ojo==null)s.ojo=PREF.ojo;
   const {svg,barra,panel}=crearZona(cont);
   svg.setAttribute('aria-label','Foto con las rectas de perspectiva. Cada recta tiene dos puntos que se arrastran hasta apoyarla en una arista del edificio.');
   let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,lapiz0=null,prop0=null,R={};if(!s.lapiz)s.lapiz=[];if(!s.extra)s.extra=[];if(!s.props)s.props=[];
@@ -73,7 +84,7 @@ ETAPAS.encaje={pintar(cont){
   function lapizTexto(m,i){const hz=R.h?GEOM.sub(R.h[1],R.h[0]):[1,0],d=GEOM.sub(m.b,m.a);let a=Math.abs((Math.atan2(d[1],d[0])-Math.atan2(hz[1],hz[0]))*180/Math.PI)%180;if(a>90)a=180-a;
     const ang=a<2?'horizontal':a>88?'vertical':fmt(a,0)+'° con la horizontal';if(i===0)return 'Medida 1 · '+ang;
     const r=GEOM.len(d)/GEOM.len(GEOM.sub(s.lapiz[0].b,s.lapiz[0].a));return '×'+fmt(r,r<10?1:0)+' · '+ang}
-  const ojo=()=>s.ojo||PREF.ojo;
+  const ojo=()=>s.ojo||PREF.ojo,textoAuto=()=>textoAutoDe(s);
   function viewBox(){const W=p.w*vista.k,H=p.h*vista.k;svg.setAttribute('viewBox',`${vista.cx-W/2} ${vista.cy-H/2} ${W} ${H}`);return [vista.cx-W/2,vista.cy-H/2,vista.cx+W/2,vista.cy+H/2]}
   function verFugas(){const pts=[[0,0],[p.w,p.h]];for(const k of ['A','B','V',...(s.extra||[])])if(R[k])pts.push(R[k]);
     const lim=3;let x0=Math.min(...pts.map(q=>q[0])),x1=Math.max(...pts.map(q=>q[0])),y0=Math.min(...pts.map(q=>q[1])),y1=Math.max(...pts.map(q=>q[1]));
@@ -195,13 +206,19 @@ ETAPAS.encaje={pintar(cont){
       <button data-modo="1" aria-pressed="${s.modo===1}">1 · De frente</button><button data-modo="2" aria-pressed="${s.modo===2}">2 · Esquina</button><button data-modo="3" aria-pressed="${s.modo===3}">3 · Mirando arriba</button></div>
       <p class="muted" style="margin-top:8px">${s.modo===1?'Una calle o una fachada vista de frente: las líneas que se alejan van a un solo punto.':s.modo===2?'Un edificio en esquina: cada fachada tiene su punto de fuga, A y B, los dos en el horizonte. Las verticales siguen verticales.':'Una torre vista desde abajo (o desde arriba): las verticales también fugan, hacia el punto V.'}</p>
       <ul class="leyenda">${todas(s).map(f=>`<li><svg width="46" height="14" aria-hidden="true"><line x1="2" y1="7" x2="44" y2="7" stroke="currentColor" stroke-width="3" stroke-dasharray="${TRAZO[f]}"/></svg><span><b>${f}</b> · ${f==='A'?(s.modo===1?'líneas que se alejan':'fachada de la izquierda'):f==='B'?'fachada de la derecha':f==='V'?'verticales':'otra fachada'} (${f==='A'?'trazo continuo, puntos redondos':f==='B'?'trazo a rayas, puntos con un cuadrado':f==='V'?'trazo de puntos, puntos con un triángulo':'trazo propio, puntos con su letra'})</span></li>`).join('')}</ul>
+      <div class="ops" style="margin-top:8px"><button data-buscar="1">🔍 Buscar las aristas en la foto</button></div>
+      <p class="muted" style="margin-top:8px" id="ej-auto">${s.auto?textoAuto():'La app puede buscar en la foto aleros, zócalos y filas de ventanas y colocar las rectas por ti.'}</p>
       <div class="ops" style="margin-top:8px">${familias(s.modo).map(f=>`<button data-mas="${f}">Otra recta ${f}</button>`).join('')}<button data-quitar="1">Quitar la última añadida</button></div>
       <p class="muted" style="margin-top:8px">Con más de dos rectas por letra, el punto de fuga es el que mejor encaja con todas.</p>
       <div class="ops" style="margin-top:8px">${s.extra.length<EXTRA.length?`<button data-fachada="1">Otra fachada (${EXTRA[s.extra.length]})</button>`:''}${s.extra.length?`<button data-sinfachada="1">Quitar la fachada ${s.extra[s.extra.length-1]}</button>`:''}</div>
       <p class="muted" style="margin-top:8px">En las calles torcidas cada fachada tiene su punto de fuga, y todos están en el mismo horizonte (Brehm). Para otra fachada basta una recta en su alero o su zócalo: la app la prolonga hasta el horizonte.</p></div>`);
     c1.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
-      if(b.dataset.modo){const m=+b.dataset.modo;if(m===s.modo)return;s.modo=m;const d=porDefecto(p,m);for(const f of ['A','B','V'])if(!s.lineas[f]||s.lineas[f].length<2||!familias(m).includes(f))s.lineas[f]=d[f];
-        if(m===1)s.lineas.A=d.A;guardar();pintarPanel();dibujar();anunciar(b.textContent)}
+      if(b.dataset.modo){const m=+b.dataset.modo;if(m===s.modo)return;const antes=s.modo;s.modo=m;const d=porDefecto(p,m);
+        // de 2 a 3 se conservan A y B; en los demás cambios A significa otra cosa, así que se buscan otra vez en la foto
+        if((antes===2&&m===3)||(antes===3&&m===2)){for(const f of ['A','B','V'])if(!familias(m).includes(f)||!s.lineas[f]||s.lineas[f].length<2)s.lineas[f]=d[f];if(m===3)autoRectas(p,3,['V'])}
+        else{s.lineas=Object.assign({},d,...(s.extra||[]).map(f=>({[f]:s.lineas[f]})));s.auto=autoRectas(p,m)}
+        guardar();pintarPanel();dibujar();anunciar(b.textContent+'. '+textoAuto())}
+      if(b.dataset.buscar){const ok=autoRectas(p,s.modo);s.auto=ok;sel=null;guardar();pintarPanel();dibujar();anunciar(textoAuto())}
       if(b.dataset.mas){const f=b.dataset.mas,l=s.lineas[f],a=l[l.length-1];l.push([[a[0][0],a[0][1]+p.h*0.08],[a[1][0],a[1][1]+p.h*0.08]]);s.ultima=(s.ultima||[]).concat(f);guardar();dibujar();anunciar('Recta '+f+(l.length)+' añadida.')}
       if(b.dataset.fachada){const f=EXTRA[s.extra.length];if(!f)return;s.extra.push(f);s.lineas[f]=[[[p.w*.56,p.h*.64],[p.w*.8,p.h*.68]]];sel=f+':0:0';guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' añadida: mueve su recta hasta el alero o el zócalo de esa fachada.')}
       if(b.dataset.sinfachada){const f=s.extra.pop();delete s.lineas[f];s.ultima=(s.ultima||[]).filter(x=>x!==f);guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' quitada.')}

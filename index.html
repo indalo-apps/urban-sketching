@@ -7,7 +7,7 @@
   Urban Sketching · Perspectiva, valores y color para dibujar la ciudad
   © 2026 Carlos Moreno Otto. Todos los derechos reservados.
 -->
-<meta name="app-version" content="1.3.1">
+<meta name="app-version" content="1.4">
 <meta name="theme-color" content="#9a4527" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -665,6 +665,118 @@ function recortar(p,q,rect){const [x0,y0,x1,y1]=rect;let t0=0,t1=1;const dx=q[0]
 const GEOM={sub,add,mul,dot,len,dist,norm,homog,corte,puntoFuga,angulo,proyectar,ladoHorizonte,cono,anguloFoto,arriba,altura,cimaDe,horizonteMovil,rayos,recortar};
 raiz.GEOM=GEOM;if(typeof module!=='undefined')module.exports=GEOM;
 })(typeof window!=='undefined'?window:globalThis);
+/* ===== Buscar las aristas en la foto (sin pantalla, para poder probarlo) =====
+   1) Segmentos rectos: se agrupan píxeles de borde con la misma orientación del gradiente y se ajusta una recta
+      a cada grupo (idea del detector LSD de Grompone von Gioi et al., muy simplificada).
+   2) Puntos de fuga: entre los segmentos largos se prueban cortes de parejas y gana el punto hacia el que apuntan
+      más metros de arista (RANSAC). Los segmentos casi verticales se apartan: en una esquina son las verticales.
+   3) Para cada punto de fuga se eligen dos aristas largas y bien separadas: serán las rectas A1 y A2 (o B1 y B2).
+   Entrada: datos RGBA (ImageData.data), ancho y alto; salida en píxeles de esa imagen. */
+(function(raiz){
+const RAD=Math.PI/180;
+// Segmentos rectos de la imagen: [{p:[x,y],q:[x,y],l:longitud,a:ángulo 0..180}]
+function segmentos(d,w,h,{minLong}={}){
+  const N=w*h,g=new Float32Array(N);for(let i=0,j=0;i<N;i++,j+=4)g[i]=0.299*d[j]+0.587*d[j+1]+0.114*d[j+2];
+  // suavizado 3×3 para quitar ruido de la compresión
+  const s=new Float32Array(N);for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;
+    s[i]=(4*g[i]+2*(g[i-1]+g[i+1]+g[i-w]+g[i+w])+g[i-w-1]+g[i-w+1]+g[i+w-1]+g[i+w+1])/16}
+  const m=new Float32Array(N),ang=new Float32Array(N);let hist=new Uint32Array(256);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;
+    const gx=(s[i-w+1]+2*s[i+1]+s[i+w+1])-(s[i-w-1]+2*s[i-1]+s[i+w-1]),gy=(s[i+w-1]+2*s[i+w]+s[i+w+1])-(s[i-w-1]+2*s[i-w]+s[i-w+1]);
+    const v=Math.hypot(gx,gy)/4;m[i]=v;hist[Math.min(255,v|0)]++;ang[i]=Math.atan2(gy,gx)}// dirección del gradiente (perpendicular a la arista)
+  // umbral: el 15 % de píxeles con más contraste, y nunca por debajo de 8
+  let acc=0,T=8;for(let k=255;k>=0;k--){acc+=hist[k];if(acc>N*0.15){T=Math.max(8,k);break}}
+  // bordes finos (supresión de no máximos, como en Canny): un píxel por arista, así dos aristas juntas no se mezclan
+  const fino=new Uint8Array(N);
+  for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){const i=y*w+x,v=m[i];if(v<=T)continue;
+    let a=ang[i];if(a<0)a+=Math.PI;const q=Math.round(a/(Math.PI/4))%4,o=q===0?1:q===1?w+1:q===2?w:w-1;
+    if(v>=m[i+o]&&v>=m[i-o])fino[i]=1}
+  const orden=[];for(let i=0;i<N;i++)if(fino[i]&&m[i]>T*1.5)orden.push(i);orden.sort((a,b)=>m[b]-m[a]);
+  const usado=new Uint8Array(N),tol=22.5*RAD,out=[],cola=new Int32Array(N),minL=minLong||Math.max(18,Math.max(w,h)*0.035);
+  const dif=(a,b)=>{let x=Math.abs(a-b)%(2*Math.PI);if(x>Math.PI)x=2*Math.PI-x;return Math.min(x,Math.PI-x)};// orientación de recta (sin sentido)
+  for(const semilla of orden){if(usado[semilla])continue;
+    let n=0,cab=0,cx=Math.cos(2*ang[semilla]),cy=Math.sin(2*ang[semilla]),ref=ang[semilla];cola[n++]=semilla;usado[semilla]=1;
+    while(cab<n){const i=cola[cab++],x=i%w,y=(i-x)/w;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const xx=x+dx,yy=y+dy;if(xx<1||yy<1||xx>=w-1||yy>=h-1)continue;
+        const k=yy*w+xx;if(usado[k]||!fino[k]||dif(ang[k],ref)>tol)continue;usado[k]=1;cola[n++]=k;
+        cx+=Math.cos(2*ang[k]);cy+=Math.sin(2*ang[k]);ref=Math.atan2(cy,cx)/2}}
+    if(n<minL*0.8)continue;
+    // recta por mínimos cuadrados (componente principal), pesando por el contraste
+    let sw=0,mx=0,my=0;for(let t=0;t<n;t++){const i=cola[t],x=i%w,y=(i-x)/w,p=m[i];sw+=p;mx+=p*x;my+=p*y}mx/=sw;my/=sw;
+    let sxx=0,syy=0,sxy=0;for(let t=0;t<n;t++){const i=cola[t],x=i%w-mx,y=(i-i%w)/w-my,p=m[i];sxx+=p*x*x;syy+=p*y*y;sxy+=p*x*y}
+    const tr=(sxx+syy)/sw,det=(sxx*syy-sxy*sxy)/(sw*sw),l1=tr/2+Math.sqrt(Math.max(0,tr*tr/4-det)),l2=tr-l1;
+    const a=0.5*Math.atan2(2*sxy,sxx-syy),u=[Math.cos(a),Math.sin(a)];
+    let t0=1e9,t1=-1e9;for(let t=0;t<n;t++){const i=cola[t],x=i%w,y=(i-x)/w,v=(x-mx)*u[0]+(y-my)*u[1];if(v<t0)t0=v;if(v>t1)t1=v}
+    const L=t1-t0;if(L<minL||Math.sqrt(Math.max(l2,0))>1.2||n/L>2.2)continue;// largo, fino y sin manchas
+    const P0=[mx+u[0]*t0,my+u[1]*t0],P1=[mx+u[0]*t1,my+u[1]*t1],borde=q=>q[0]<4||q[1]<4||q[0]>w-5||q[1]>h-5;if(borde(P0)&&borde(P1))continue;// el canto de la foto no es una arista
+    let gA=a/RAD;if(gA<0)gA+=180;if(gA>=180)gA-=180;
+    out.push({p:[mx+u[0]*t0,my+u[1]*t0],q:[mx+u[0]*t1,my+u[1]*t1],l:L,a:gA})}
+  return out}
+// ¿Apunta el segmento hacia el punto P? (ángulo entre el segmento y la recta de su centro a P, en grados)
+function desvio(sg,P){const c=[(sg.p[0]+sg.q[0])/2,(sg.p[1]+sg.q[1])/2],d=[sg.q[0]-sg.p[0],sg.q[1]-sg.p[1]];
+  let e=[P[0]-c[0],P[1]-c[1]];const le=Math.hypot(e[0],e[1]);if(le<sg.l*0.6)return 90;// el punto no puede caer encima del segmento
+  const s=Math.abs(d[0]*e[1]-d[1]*e[0])/(sg.l*le);return Math.asin(Math.min(1,s))/RAD}
+function corteSeg(a,b){const h=(p,q)=>[p[1]-q[1],q[0]-p[0],p[0]*q[1]-q[0]*p[1]],A=h(a.p,a.q),B=h(b.p,b.q);
+  const x=A[1]*B[2]-A[2]*B[1],y=A[2]*B[0]-A[0]*B[2],z=A[0]*B[1]-A[1]*B[0];if(Math.abs(z)<1e-9)return null;return [x/z,y/z]}
+// Puntos de fuga posibles para unos segmentos (RANSAC con parejas de los más largos), del más apoyado al menos.
+// acepta(P) filtra candidatos; se devuelven hasta n puntos distintos entre sí.
+function candidatosFuga(segs,{tol=1.5,acepta=()=>true,n=1,c=[0,0]}={}){
+  const top=segs.slice().sort((a,b)=>b.l-a.l).slice(0,70),hs=[];
+  for(let i=0;i<top.length;i++)for(let j=i+1;j<top.length;j++){
+    if(Math.abs(((top[i].a-top[j].a+270)%180)-90)>88.5)continue;// casi paralelas: corte poco fiable
+    const P=corteSeg(top[i],top[j]);if(!P||!isFinite(P[0])||!acepta(P))continue;
+    let sc=0;for(const s of segs){const e=desvio(s,P);if(e<tol)sc+=s.l*(1-e/tol*0.5)}
+    if(sc>0)hs.push({P,sc})}
+  hs.sort((a,b)=>b.sc-a.sc);const dir=P=>Math.atan2(P[1]-c[1],P[0]-c[0]),out=[];
+  for(const x of hs){if(out.some(o=>{let d=Math.abs(dir(o.P)-dir(x.P));d=Math.min(d,2*Math.PI-d);return d<2*RAD&&Math.abs(Math.log(Math.hypot(o.P[0]-c[0],o.P[1]-c[1])/Math.hypot(x.P[0]-c[0],x.P[1]-c[1])))<0.5}))continue;
+    out.push(pulir(segs,x,tol,acepta));if(out.length>=n)break}
+  return out}
+function pulir(segs,x,tol,acepta){let inl=segs.filter(s=>desvio(s,x.P)<tol);
+  // afinado: el punto que menos se aparta de todas las aristas que apuntan a él (pesando por largo)
+  const P=afinar(inl,x.P);if(P&&acepta(P)){const i2=segs.filter(s=>desvio(s,P)<tol);if(i2.length>=inl.length*0.8)return {P,inl:i2,sc:i2.reduce((a,s)=>a+s.l,0)}}
+  return {P:x.P,inl,sc:inl.reduce((a,s)=>a+s.l,0)}}
+const mejorFuga=(segs,o)=>candidatosFuga(segs,Object.assign({n:1},o))[0]||null;
+function afinar(segs,P0){let s11=0,s12=0,s22=0,t1=0,t2=0;
+  for(const s of segs){let a=s.p[1]-s.q[1],b=s.q[0]-s.p[0];const l=Math.hypot(a,b)||1;a/=l;b/=l;const c=-(a*s.p[0]+b*s.p[1]),w=s.l;
+    s11+=w*a*a;s12+=w*a*b;s22+=w*b*b;t1-=w*a*c;t2-=w*b*c}
+  const det=s11*s22-s12*s12;if(Math.abs(det)<1e-6*s11*s22)return P0;return [(t1*s22-t2*s12)/det,(s11*t2-s12*t1)/det]}
+// Dos aristas largas y bien separadas de una familia, para que su corte sea estable.
+// Cada una se gira un pelo para que pase por el punto de fuga afinado con todas las aristas de la familia.
+function dosRectas(inl,P){const o=inl.slice().sort((a,b)=>b.l-a.l).slice(0,30);if(o.length<2)return null;
+  const largo=o[0].l;let mejor=null;
+  for(let i=0;i<o.length;i++)for(let j=i+1;j<o.length;j++){const s1=o[i],s2=o[j];let da=Math.abs(s1.a-s2.a)%180;da=Math.min(da,180-da);
+    const v=Math.min(s1.l,s2.l)/largo*Math.min(da,15)+(s1.l+s2.l)/largo*0.4;if(da>=1&&(!mejor||v>mejor.v))mejor={v,par:[s1,s2]}}
+  if(!mejor)return null;
+  return mejor.par.map(s=>{const c=[(s.p[0]+s.q[0])/2,(s.p[1]+s.q[1])/2];let d=[P[0]-c[0],P[1]-c[1]];const l=Math.hypot(d[0],d[1])||1;d=[d[0]/l,d[1]/l];
+    const t=q=>(q[0]-c[0])*d[0]+(q[1]-c[1])*d[1],a=t(s.p),b=t(s.q);return [[c[0]+d[0]*a,c[1]+d[1]*a],[c[0]+d[0]*b,c[1]+d[1]*b]]})}
+/* Ajuste completo según el modo (1 de frente, 2 esquina, 3 mirando arriba).
+   Devuelve {A:[[p,q],[p,q]], B:…, V:…} con las familias que se han encontrado y la confianza de cada una. */
+function buscar(d,w,h,modo){
+  const segs=segmentos(d,w,h),c=[w/2,h/2],D=Math.max(w,h);
+  const casiV=s=>Math.abs(s.a-90)<20,casiH=s=>s.a<4||s.a>176;
+  const oblicuas=segs.filter(s=>!casiV(s)),res={segs:segs.length,conf:{}};
+  const dentroCampo=P=>Math.abs(P[1]-c[1])<h*1.6&&Math.hypot(P[0]-c[0],P[1]-c[1])<D*14;
+  const recta=s=>[s.p.map(v=>Math.round(v*10)/10),s.q.map(v=>Math.round(v*10)/10)];
+  const familia=(f,v)=>{const two=v&&dosRectas(v.inl,v.P);if(!two)return false;res[f]=two.map(([p,q])=>recta({p,q}));res.conf[f]=v.sc/D;res['P'+f]=v.P;return true};
+  if(modo===1){const v=mejorFuga(segs.filter(s=>!casiV(s)&&!casiH(s)),{acepta:P=>Math.abs(P[0]-c[0])<w*1.2&&Math.abs(P[1]-c[1])<h*1.2});familia('A',v);return res}
+  // esquina: dos puntos de fuga, uno a cada lado del centro, y el horizonte que los une perpendicular a las verticales
+  // de la foto (con el móvil derecho, las verticales salen verticales y el horizonte, horizontal).
+  const vert=segs.filter(s=>Math.abs(s.a-90)<12);let inc=0,pv=0;for(const s of vert){inc+=(s.a-90)*s.l;pv+=s.l}
+  const giro=pv>D*0.3?inc/pv:0,tolGiro=pv>D*0.3?4:8;// inclinación esperada del horizonte, en grados
+  const bien=(P,Q)=>{let g=Math.atan2(Q[1]-P[1],Q[0]-P[0])/RAD;if(g>90)g-=180;if(g<-90)g+=180;return Math.abs(g-giro)<tolGiro};
+  const c1=candidatosFuga(oblicuas,{acepta:dentroCampo,n:8,c});let par=null;
+  for(const v1 of c1){const resto=oblicuas.filter(s=>desvio(s,v1.P)>=1.5);
+    const v2=mejorFuga(resto,{acepta:P=>dentroCampo(P)&&Math.sign(P[0]-c[0])!==Math.sign(v1.P[0]-c[0])&&bien(v1.P,P),c});
+    const sc=v1.sc+(v2?v2.sc:0)+(v2?Math.min(v1.sc,v2.sc):0);// premia que las dos fachadas tengan apoyo
+    if(!par||sc>par.sc)par={sc,v1,v2}}
+  if(!par)return res;const {v1,v2}=par;
+  let [vA,vB]=v2&&v2.P[0]<v1.P[0]?[v2,v1]:[v1,v2];if(!v2&&v1.P[0]>c[0]){vB=v1;vA=null}
+  familia('A',vA);familia('B',vB);
+  if(modo===3){const vv=mejorFuga(segs.filter(s=>Math.abs(s.a-90)<30),{tol:1.2,acepta:P=>Math.abs(P[1]-c[1])>h*0.6});familia('V',vv)}
+  return res}
+const ARISTAS={segmentos,mejorFuga,candidatosFuga,desvio,buscar};
+raiz.ARISTAS=ARISTAS;if(typeof module!=='undefined')module.exports=ARISTAS;
+})(typeof window!=='undefined'?window:globalThis);
 /* ===== Cálculos de color (sin pantalla, para poder probarlos) =====
    Colores en sRGB (0–255), CIELAB (D65) y reflectancia por canal para las mezclas de acuarela. */
 (function(raiz){
@@ -1230,9 +1342,20 @@ function textoProporcion(r){const ancha=r>=1,v=ancha?r:1/r,n=Math.floor(v+1e-9),
   let t=rem<0.1?(n===1?'un cuadrado':`${num} cuadrados`):rem<0.35?`${num} cuadrado${n>1?'s':''} y un cuarto`:rem<0.65?`${num} cuadrado${n>1?'s':''} y medio`:rem<0.9?`${num} cuadrado${n>1?'s':''} y tres cuartos`:`casi ${['','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece'][n+1]||n+1} cuadrados`;
   t=t.replace(/^un cuadrado y/,'un cuadrado y');
   return (ancha?`Ancho = ${fmt(v,2)} × alto: `:`Alto = ${fmt(v,2)} × ancho: `)+t+(ancha?' a lo ancho':' a lo alto')}
-window.ENCAJE={calcular,dondeEn,alturaHz,familias,porDefecto,todas,proporcion,textoProporcion};
+/* Busca las aristas en la foto (aristas.js) y coloca las rectas de cada familia del modo.
+   Las familias que no se encuentran se quedan en su sitio por defecto. Devuelve las letras encontradas. */
+function autoRectas(p,modo,solo){const img=US.img;if(!img||!window.ARISTAS)return [];
+  try{const k=Math.min(1,900/Math.max(p.w,p.h)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(p.w*k));c.height=Math.max(1,Math.round(p.h*k));
+    const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,c.width,c.height);
+    const r=ARISTAS.buscar(x.getImageData(0,0,c.width,c.height).data,c.width,c.height,modo),d=porDefecto(p,modo),ok=[];
+    for(const f of solo||familias(modo)){if(r[f]){p.pers.lineas[f]=r[f].map(l=>l.map(q=>[Math.round(q[0]/k*10)/10,Math.round(q[1]/k*10)/10]));ok.push(f)}else p.pers.lineas[f]=d[f]}
+    return ok}catch(e){return []}}
+function textoAutoDe(s){const ok=s.auto||[],fs=familias(s.modo),no=fs.filter(f=>!ok.includes(f));
+  if(!ok.length)return 'No he encontrado aristas claras en la foto: coloca las rectas a mano, apoyándolas en aleros, zócalos o filas de ventanas.';
+  return 'He buscado las aristas en la foto y he colocado '+(ok.length>1?'las rectas '+ok.join(' y '):'la recta '+ok[0])+'.'+(no.length?' '+(no.length>1?'Las de '+no.join(' y ')+' no las he encontrado':'La '+no[0]+' no la he encontrado')+': colócala'+(no.length>1?'s':'')+' a mano.':'')+' Revísalas y arrastra las que no se apoyen bien en una arista.'}
+window.ENCAJE={calcular,autoRectas,dondeEn,alturaHz,familias,porDefecto,todas,proporcion,textoProporcion};
 ETAPAS.encaje={pintar(cont){
-  const p=US.p,s=p.pers;if(!s.lineas)s.lineas=porDefecto(p,s.modo);if(s.ojo==null)s.ojo=PREF.ojo;
+  const p=US.p,s=p.pers;if(!s.lineas){s.lineas=porDefecto(p,s.modo);s.auto=autoRectas(p,s.modo)}if(s.ojo==null)s.ojo=PREF.ojo;
   const {svg,barra,panel}=crearZona(cont);
   svg.setAttribute('aria-label','Foto con las rectas de perspectiva. Cada recta tiene dos puntos que se arrastran hasta apoyarla en una arista del edificio.');
   let sel=null,vista={cx:p.w/2,cy:p.h/2,k:1},medida0=null,lapiz0=null,prop0=null,R={};if(!s.lapiz)s.lapiz=[];if(!s.extra)s.extra=[];if(!s.props)s.props=[];
@@ -1240,7 +1363,7 @@ ETAPAS.encaje={pintar(cont){
   function lapizTexto(m,i){const hz=R.h?GEOM.sub(R.h[1],R.h[0]):[1,0],d=GEOM.sub(m.b,m.a);let a=Math.abs((Math.atan2(d[1],d[0])-Math.atan2(hz[1],hz[0]))*180/Math.PI)%180;if(a>90)a=180-a;
     const ang=a<2?'horizontal':a>88?'vertical':fmt(a,0)+'° con la horizontal';if(i===0)return 'Medida 1 · '+ang;
     const r=GEOM.len(d)/GEOM.len(GEOM.sub(s.lapiz[0].b,s.lapiz[0].a));return '×'+fmt(r,r<10?1:0)+' · '+ang}
-  const ojo=()=>s.ojo||PREF.ojo;
+  const ojo=()=>s.ojo||PREF.ojo,textoAuto=()=>textoAutoDe(s);
   function viewBox(){const W=p.w*vista.k,H=p.h*vista.k;svg.setAttribute('viewBox',`${vista.cx-W/2} ${vista.cy-H/2} ${W} ${H}`);return [vista.cx-W/2,vista.cy-H/2,vista.cx+W/2,vista.cy+H/2]}
   function verFugas(){const pts=[[0,0],[p.w,p.h]];for(const k of ['A','B','V',...(s.extra||[])])if(R[k])pts.push(R[k]);
     const lim=3;let x0=Math.min(...pts.map(q=>q[0])),x1=Math.max(...pts.map(q=>q[0])),y0=Math.min(...pts.map(q=>q[1])),y1=Math.max(...pts.map(q=>q[1]));
@@ -1362,13 +1485,19 @@ ETAPAS.encaje={pintar(cont){
       <button data-modo="1" aria-pressed="${s.modo===1}">1 · De frente</button><button data-modo="2" aria-pressed="${s.modo===2}">2 · Esquina</button><button data-modo="3" aria-pressed="${s.modo===3}">3 · Mirando arriba</button></div>
       <p class="muted" style="margin-top:8px">${s.modo===1?'Una calle o una fachada vista de frente: las líneas que se alejan van a un solo punto.':s.modo===2?'Un edificio en esquina: cada fachada tiene su punto de fuga, A y B, los dos en el horizonte. Las verticales siguen verticales.':'Una torre vista desde abajo (o desde arriba): las verticales también fugan, hacia el punto V.'}</p>
       <ul class="leyenda">${todas(s).map(f=>`<li><svg width="46" height="14" aria-hidden="true"><line x1="2" y1="7" x2="44" y2="7" stroke="currentColor" stroke-width="3" stroke-dasharray="${TRAZO[f]}"/></svg><span><b>${f}</b> · ${f==='A'?(s.modo===1?'líneas que se alejan':'fachada de la izquierda'):f==='B'?'fachada de la derecha':f==='V'?'verticales':'otra fachada'} (${f==='A'?'trazo continuo, puntos redondos':f==='B'?'trazo a rayas, puntos con un cuadrado':f==='V'?'trazo de puntos, puntos con un triángulo':'trazo propio, puntos con su letra'})</span></li>`).join('')}</ul>
+      <div class="ops" style="margin-top:8px"><button data-buscar="1">🔍 Buscar las aristas en la foto</button></div>
+      <p class="muted" style="margin-top:8px" id="ej-auto">${s.auto?textoAuto():'La app puede buscar en la foto aleros, zócalos y filas de ventanas y colocar las rectas por ti.'}</p>
       <div class="ops" style="margin-top:8px">${familias(s.modo).map(f=>`<button data-mas="${f}">Otra recta ${f}</button>`).join('')}<button data-quitar="1">Quitar la última añadida</button></div>
       <p class="muted" style="margin-top:8px">Con más de dos rectas por letra, el punto de fuga es el que mejor encaja con todas.</p>
       <div class="ops" style="margin-top:8px">${s.extra.length<EXTRA.length?`<button data-fachada="1">Otra fachada (${EXTRA[s.extra.length]})</button>`:''}${s.extra.length?`<button data-sinfachada="1">Quitar la fachada ${s.extra[s.extra.length-1]}</button>`:''}</div>
       <p class="muted" style="margin-top:8px">En las calles torcidas cada fachada tiene su punto de fuga, y todos están en el mismo horizonte (Brehm). Para otra fachada basta una recta en su alero o su zócalo: la app la prolonga hasta el horizonte.</p></div>`);
     c1.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
-      if(b.dataset.modo){const m=+b.dataset.modo;if(m===s.modo)return;s.modo=m;const d=porDefecto(p,m);for(const f of ['A','B','V'])if(!s.lineas[f]||s.lineas[f].length<2||!familias(m).includes(f))s.lineas[f]=d[f];
-        if(m===1)s.lineas.A=d.A;guardar();pintarPanel();dibujar();anunciar(b.textContent)}
+      if(b.dataset.modo){const m=+b.dataset.modo;if(m===s.modo)return;const antes=s.modo;s.modo=m;const d=porDefecto(p,m);
+        // de 2 a 3 se conservan A y B; en los demás cambios A significa otra cosa, así que se buscan otra vez en la foto
+        if((antes===2&&m===3)||(antes===3&&m===2)){for(const f of ['A','B','V'])if(!familias(m).includes(f)||!s.lineas[f]||s.lineas[f].length<2)s.lineas[f]=d[f];if(m===3)autoRectas(p,3,['V'])}
+        else{s.lineas=Object.assign({},d,...(s.extra||[]).map(f=>({[f]:s.lineas[f]})));s.auto=autoRectas(p,m)}
+        guardar();pintarPanel();dibujar();anunciar(b.textContent+'. '+textoAuto())}
+      if(b.dataset.buscar){const ok=autoRectas(p,s.modo);s.auto=ok;sel=null;guardar();pintarPanel();dibujar();anunciar(textoAuto())}
       if(b.dataset.mas){const f=b.dataset.mas,l=s.lineas[f],a=l[l.length-1];l.push([[a[0][0],a[0][1]+p.h*0.08],[a[1][0],a[1][1]+p.h*0.08]]);s.ultima=(s.ultima||[]).concat(f);guardar();dibujar();anunciar('Recta '+f+(l.length)+' añadida.')}
       if(b.dataset.fachada){const f=EXTRA[s.extra.length];if(!f)return;s.extra.push(f);s.lineas[f]=[[[p.w*.56,p.h*.64],[p.w*.8,p.h*.68]]];sel=f+':0:0';guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' añadida: mueve su recta hasta el alero o el zócalo de esa fachada.')}
       if(b.dataset.sinfachada){const f=s.extra.pop();delete s.lineas[f];s.ultima=(s.ultima||[]).filter(x=>x!==f);guardar();pintarPanel();dibujar();anunciar('Fachada '+f+' quitada.')}
@@ -2467,6 +2596,7 @@ const VISTA_MATERIAL=(function(){
   const q=s=>document.querySelector(s);
   const VERSION=(q('meta[name="app-version"]')||{}).content||'dev';
   const NOVEDADES=[
+    ["1.4",["🔍 Encaje: la app busca sola las aristas de la foto (aleros, zócalos, filas de ventanas) y coloca las rectas A y B en el edificio. Botón «Buscar las aristas en la foto» para repetirlo","🛠 Arreglado: al pasar de «1 · De frente» a «2 · Esquina» las rectas A se quedaban en el centro y no seguían el edificio"]],
     ["1.3.1",["⚠ Aviso claro de dónde se guardan tus fotos: solo dentro de la app, en este móvil (no en tu carrete ni en iCloud)"]],
     ["1.3",["☀ Sol y sombras: de dónde viene la luz a cada hora en Almería (o donde estés), cuánto miden las sombras, a qué hora sale y se pone el sol y las horas doradas, con brújula","📍 Rutas y retos por Almería: 17 sitios de la ciudad y la provincia para dibujar, cada uno con un reto y su lección","🎒 Lista de material para salir a dibujar, con recordatorio en tu calendario","🎨 Color: «Paleta limitada», las 3 pinturas de tu caja con las que mejor sale toda la foto","◐ Valores: dos vistas nuevas, «Bordes» (qué contornos merecen línea de tinta) y «Trama» (los tonos en líneas paralelas, cruzadas o puntos)","📖 Dos lecciones nuevas: Tramas y sombreados, y Grosor de línea"]],
     ["1.2",["▦ Encaje: «Proporciones». Tocas dos esquinas de una fachada y la app deshace la perspectiva, la mide de verdad y dibuja los cuadrados que caben y sus diagonales (Stephanie Bower)","🖍 Rotuladores Albrecht Dürer de Faber-Castell: sus 30 colores en Color y en «Mi caja»","🖨 Hoja de pruebas para imprimir (PDF, A4): casillas para pintar cada color con más o menos agua y la tabla de mezclas","📖 Tres lecciones nuevas: Busca cuadrados, Escaleras y Arcos y círculos"]],
